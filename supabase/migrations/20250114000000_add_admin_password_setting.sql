@@ -14,3 +14,4 @@ CREATE POLICY "Public can manage admin password"
   USING (id = 'admin_password')
   WITH CHECK (id = 'admin_password');
 
+

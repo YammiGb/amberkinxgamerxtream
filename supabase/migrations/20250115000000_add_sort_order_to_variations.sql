@@ -25,3 +25,4 @@ END $$;
 -- Create index on sort_order for better query performance
 CREATE INDEX IF NOT EXISTS idx_variations_sort_order ON variations(menu_item_id, sort_order);
 
+

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowLeft, Upload, X } from 'lucide-react';
+import { ArrowLeft, Upload, X, Copy, Check } from 'lucide-react';
 import { CartItem, PaymentMethod } from '../types';
 import { usePaymentMethods } from '../hooks/usePaymentMethods';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -20,11 +20,21 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Group custom fields by item/game
   // If any game has custom fields, show those grouped by game. Otherwise, show default "IGN" field
+  // Deduplicate by item ID to avoid showing the same fields multiple times for the same item
   const itemsWithCustomFields = useMemo(() => {
-    return cartItems.filter(item => item.customFields && item.customFields.length > 0);
+    const itemsWithFields = cartItems.filter(item => item.customFields && item.customFields.length > 0);
+    // Deduplicate by item ID
+    const uniqueItems = new Map<string, typeof cartItems[0]>();
+    itemsWithFields.forEach(item => {
+      if (!uniqueItems.has(item.id)) {
+        uniqueItems.set(item.id, item);
+      }
+    });
+    return Array.from(uniqueItems.values());
   }, [cartItems]);
 
   const hasAnyCustomFields = itemsWithCustomFields.length > 0;
@@ -76,12 +86,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack }) =>
     setReceiptError(null);
   };
 
-  const handlePlaceOrder = () => {
-    if (!receiptImageUrl) {
-      setReceiptError('Please upload your payment receipt before placing the order');
-      return;
-    }
-
+  // Generate the order message text
+  const generateOrderMessage = (): string => {
     // Build custom fields section grouped by game
     let customFieldsSection = '';
     if (hasAnyCustomFields) {
@@ -120,11 +126,32 @@ ${cartItems.map(item => {
 
 💳 Payment: ${selectedPaymentMethod?.name || paymentMethod}
 
-📸 Payment Receipt: ${receiptImageUrl}
+📸 Payment Receipt: ${receiptImageUrl || ''}
 
 Please confirm this order to proceed. Thank you for choosing AmberKin! 🎮
     `.trim();
 
+    return orderDetails;
+  };
+
+  const handleCopyMessage = async () => {
+    try {
+      const message = generateOrderMessage();
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy message:', error);
+    }
+  };
+
+  const handlePlaceOrder = () => {
+    if (!receiptImageUrl) {
+      setReceiptError('Please upload your payment receipt before placing the order');
+      return;
+    }
+
+    const orderDetails = generateOrderMessage();
     const encodedMessage = encodeURIComponent(orderDetails);
     const messengerUrl = `https://m.me/AmberKinGamerXtream?text=${encodedMessage}`;
     
@@ -492,6 +519,28 @@ Please confirm this order to proceed. Thank you for choosing AmberKin! 🎮
               <p className="mt-2 text-sm text-red-400">{receiptError}</p>
             )}
           </div>
+
+          <button
+            onClick={handleCopyMessage}
+            disabled={uploadingReceipt}
+            className={`w-full py-3 rounded-xl font-medium transition-all duration-200 transform mb-3 flex items-center justify-center space-x-2 ${
+              !uploadingReceipt
+                ? 'glass border border-cafe-primary/30 text-cafe-text hover:border-cafe-primary hover:glass-strong'
+                : 'glass border border-cafe-primary/20 text-cafe-textMuted cursor-not-allowed'
+            }`}
+          >
+            {copied ? (
+              <>
+                <Check className="h-5 w-5" />
+                <span>Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="h-5 w-5" />
+                <span>Copy Order Message</span>
+              </>
+            )}
+          </button>
 
           <button
             onClick={handlePlaceOrder}
