@@ -15,6 +15,17 @@ function MainApp() {
   const { menuItems } = useMenu();
   const [currentView, setCurrentView] = React.useState<'menu' | 'cart' | 'checkout'>('menu');
   const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
+  const [searchQuery, setSearchQuery] = React.useState<string>('');
+  
+  // Reset to 'all' if popular is somehow selected on initial load (shouldn't happen, but safety check)
+  React.useEffect(() => {
+    if (selectedCategory === 'popular' && menuItems.length > 0) {
+      const hasPopularItems = menuItems.some(item => item.popular === true);
+      if (!hasPopularItems) {
+        setSelectedCategory('all');
+      }
+    }
+  }, [menuItems, selectedCategory]);
 
   const handleViewChange = (view: 'menu' | 'cart' | 'checkout') => {
     setCurrentView(view);
@@ -22,6 +33,16 @@ function MainApp() {
 
   const handleCategoryClick = (categoryId: string) => {
     setSelectedCategory(categoryId);
+    // Clear search when changing category
+    setSearchQuery('');
+  };
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    // If searching, set category to 'all' to show all results
+    if (query.trim() !== '') {
+      setSelectedCategory('all');
+    }
   };
 
   // Handler for when item is added from package selection modal
@@ -30,10 +51,27 @@ function MainApp() {
     setCurrentView('cart');
   }, []);
 
-  // Filter menu items based on selected category
-  const filteredMenuItems = selectedCategory === 'all' 
-    ? menuItems 
-    : menuItems.filter(item => item.category === selectedCategory);
+  // Filter menu items based on selected category and search query
+  const filteredMenuItems = React.useMemo(() => {
+    let filtered = menuItems;
+
+    // First filter by category
+    if (selectedCategory === 'popular') {
+      filtered = filtered.filter(item => item.popular === true);
+    } else if (selectedCategory !== 'all') {
+      filtered = filtered.filter(item => item.category === selectedCategory);
+    }
+
+    // Then filter by search query if present
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(item => 
+        item.name.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [menuItems, selectedCategory, searchQuery]);
 
   return (
     <div className="min-h-screen bg-cafe-darkBg">
@@ -43,7 +81,12 @@ function MainApp() {
         onMenuClick={() => handleViewChange('menu')}
       />
       {currentView === 'menu' && (
-        <SubNav selectedCategory={selectedCategory} onCategoryClick={handleCategoryClick} />
+        <SubNav 
+          selectedCategory={selectedCategory} 
+          onCategoryClick={handleCategoryClick}
+          searchQuery={searchQuery}
+          onSearchChange={handleSearchChange}
+        />
       )}
       
       {currentView === 'menu' && (
@@ -53,6 +96,7 @@ function MainApp() {
           cartItems={cart.cartItems}
           updateQuantity={cart.updateQuantity}
           selectedCategory={selectedCategory}
+          searchQuery={searchQuery}
           onItemAdded={handleItemAdded}
         />
       )}

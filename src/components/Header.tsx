@@ -18,8 +18,8 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
       backdropFilter: 'blur(20px)',
       WebkitBackdropFilter: 'blur(20px)'
     }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center justify-between min-h-16 md:min-h-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-3">
+        <div className="flex items-center justify-between min-h-12 md:min-h-16">
           <button 
             onClick={onMenuClick}
             className="text-cafe-text hover:text-cafe-primary transition-colors duration-200 flex items-center"
@@ -27,7 +27,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             <img 
               src="/image.png" 
               alt={siteSettings?.site_name || "AmberKin x GamerXtream"}
-              className="h-12 sm:h-16 md:h-20 w-auto object-contain"
+              className="h-10 sm:h-12 md:h-16 w-auto object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
               }}

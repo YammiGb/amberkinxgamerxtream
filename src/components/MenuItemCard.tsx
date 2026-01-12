@@ -73,7 +73,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     <>
       <div 
         onClick={handleCardClick}
-        className={`flex flex-row items-center transition-all duration-300 group rounded-xl p-2 gap-2 ${!item.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+        className={`flex flex-row items-center transition-all duration-300 group rounded-xl p-1.5 md:p-2 gap-1.5 md:gap-2 ${!item.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
         style={{
           background: '#1E7ACB',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
