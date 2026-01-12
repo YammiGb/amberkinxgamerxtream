@@ -56,6 +56,8 @@ export type Database = {
           discount_end_date: string | null;
           discount_active: boolean;
           custom_fields: any; // JSONB array of CustomField
+          subtitle: string | null;
+          sort_order: number;
           created_at: string;
           updated_at: string;
         };
@@ -73,6 +75,8 @@ export type Database = {
           discount_end_date?: string | null;
           discount_active?: boolean;
           custom_fields?: any; // JSONB array of CustomField
+          subtitle?: string | null;
+          sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -90,6 +94,8 @@ export type Database = {
           discount_end_date?: string | null;
           discount_active?: boolean;
           custom_fields?: any; // JSONB array of CustomField
+          subtitle?: string | null;
+          sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -102,6 +108,8 @@ export type Database = {
           price: number;
           description: string | null;
           sort_order: number | null;
+          category: string | null;
+          sort: number | null;
           created_at: string;
         };
         Insert: {
@@ -111,6 +119,8 @@ export type Database = {
           price: number;
           description?: string | null;
           sort_order?: number | null;
+          category?: string | null;
+          sort?: number | null;
           created_at?: string;
         };
         Update: {
@@ -120,6 +130,8 @@ export type Database = {
           price?: number;
           description?: string | null;
           sort_order?: number | null;
+          category?: string | null;
+          sort?: number | null;
           created_at?: string;
         };
       };

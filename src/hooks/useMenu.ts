@@ -12,6 +12,7 @@ export const useMenu = () => {
       setLoading(true);
       
       // Fetch menu items with their variations and add-ons
+      // Order by category first, then by sort_order within each category
       const { data: items, error: itemsError } = await supabase
         .from('menu_items')
         .select(`
@@ -19,7 +20,8 @@ export const useMenu = () => {
           variations (*),
           add_ons (*)
         `)
-        .order('created_at', { ascending: true });
+        .order('category', { ascending: true })
+        .order('sort_order', { ascending: true });
 
       if (itemsError) throw itemsError;
 
@@ -45,6 +47,7 @@ export const useMenu = () => {
           popular: item.popular,
           available: item.available ?? true,
           image: item.image_url || undefined,
+          sort_order: item.sort_order || 0,
           discountPercentage,
           discountStartDate: item.discount_start_date || undefined,
           discountEndDate: item.discount_end_date || undefined,
@@ -58,9 +61,12 @@ export const useMenu = () => {
             name: v.name,
             price: v.price,
             description: v.description || undefined,
-            sort_order: v.sort_order || 0
+            sort_order: v.sort_order || 0,
+            category: v.category || undefined,
+            sort: v.sort !== null && v.sort !== undefined ? v.sort : undefined
           })) || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
-          customFields: (item.custom_fields as CustomField[]) || []
+          customFields: (item.custom_fields as CustomField[]) || [],
+          subtitle: item.subtitle || undefined
         };
       }) || [];
 
@@ -87,12 +93,14 @@ export const useMenu = () => {
           popular: item.popular || false,
           available: item.available ?? true,
           image_url: item.image || null,
+          sort_order: item.sort_order !== undefined ? item.sort_order : 0,
           // Store discountPercentage in discount_price column (repurposed)
           discount_price: item.discountPercentage !== undefined ? item.discountPercentage : null,
           discount_start_date: item.discountStartDate || null,
           discount_end_date: item.discountEndDate || null,
           discount_active: item.discountActive || false,
-          custom_fields: item.customFields || []
+          custom_fields: item.customFields || [],
+          subtitle: item.subtitle || null
         })
         .select()
         .single();
@@ -109,7 +117,9 @@ export const useMenu = () => {
               name: v.name,
               price: v.price,
               description: v.description || null,
-              sort_order: v.sort_order !== undefined ? v.sort_order : index
+              sort_order: v.sort_order !== undefined ? v.sort_order : index,
+              category: v.category || null,
+              sort: v.sort !== null && v.sort !== undefined ? v.sort : null
             }))
           );
 
@@ -138,12 +148,14 @@ export const useMenu = () => {
           popular: updates.popular,
           available: updates.available,
           image_url: updates.image || null,
+          sort_order: updates.sort_order !== undefined ? updates.sort_order : undefined,
           // Store discountPercentage in discount_price column (repurposed)
           discount_price: updates.discountPercentage !== undefined ? updates.discountPercentage : null,
           discount_start_date: updates.discountStartDate || null,
           discount_end_date: updates.discountEndDate || null,
           discount_active: updates.discountActive,
-          custom_fields: updates.customFields !== undefined ? updates.customFields : undefined
+          custom_fields: updates.customFields !== undefined ? updates.customFields : undefined,
+          subtitle: updates.subtitle !== undefined ? (updates.subtitle || null) : undefined
         })
         .eq('id', id);
 
@@ -162,7 +174,9 @@ export const useMenu = () => {
               name: v.name,
               price: v.price,
               description: v.description || null,
-              sort_order: v.sort_order !== undefined ? v.sort_order : index
+              sort_order: v.sort_order !== undefined ? v.sort_order : index,
+              category: v.category || null,
+              sort: v.sort !== null && v.sort !== undefined ? v.sort : null
             }))
           );
 

@@ -4,6 +4,8 @@ export interface Variation {
   price: number;
   description?: string;
   sort_order?: number;
+  category?: string;
+  sort?: number;
 }
 
 export interface CustomField {
@@ -30,6 +32,7 @@ export interface MenuItem {
   image?: string;
   popular?: boolean;
   available?: boolean;
+  sort_order?: number; // Sort order within category
   variations?: Variation[];
   // Discount pricing fields - percentage based
   discountPercentage?: number; // Percentage discount (0-100)
@@ -43,6 +46,8 @@ export interface MenuItem {
   isOnDiscount?: boolean;
   // Custom fields for customer information
   customFields?: CustomField[];
+  // Custom text to display below game title
+  subtitle?: string;
 }
 
 export interface CartItem extends MenuItem {
