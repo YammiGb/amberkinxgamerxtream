@@ -31,13 +31,16 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
       }, 3000);
       return () => clearInterval(interval);
     } else {
-      // Reset when modal closes
-      setOrder(null);
-      setLoading(true);
-      isInitialLoad.current = true;
-      shouldContinuePolling.current = true;
+      // Only reset when modal closes AND order is not approved
+      // Keep order data if it was approved so user can see it when reopening
+      if (order?.status !== 'approved') {
+        setOrder(null);
+        setLoading(true);
+        isInitialLoad.current = true;
+        shouldContinuePolling.current = true;
+      }
     }
-  }, [isOpen, orderId]);
+  }, [isOpen, orderId, order]);
 
   const loadOrder = async (isInitial: boolean) => {
     if (!orderId) return;
@@ -55,13 +58,18 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
       }
       
       // Always update the order data to ensure it stays visible
-      // Only skip update if it's a non-initial load and nothing has changed
+      // This ensures order information remains visible even when status changes to approved
       setOrder(prevOrder => {
         if (!prevOrder || isInitial) {
           return orderData;
         }
-        // Update if status or updated_at timestamp changed, OR if we don't have previous data
+        // Always update to latest order data, especially when status changes to approved
+        // This ensures the order information is always current and visible
         if (prevOrder.status !== orderData.status || prevOrder.updated_at !== orderData.updated_at) {
+          return orderData;
+        }
+        // If status is approved, always keep the approved order data visible
+        if (orderData.status === 'approved') {
           return orderData;
         }
         // Keep previous order if nothing changed (to prevent unnecessary re-renders)
@@ -69,10 +77,11 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
       });
     } else {
       // If order data is not found, only clear on initial load
-      // Otherwise keep the existing order data visible
+      // Otherwise keep the existing order data visible (especially for approved orders)
       if (isInitial) {
         setOrder(null);
       }
+      // Don't clear existing order if fetch fails and we already have order data
     }
     
     if (isInitial) {
