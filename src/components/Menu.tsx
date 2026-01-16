@@ -196,13 +196,13 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, updateQuan
     if (menuItems.length === 0) {
       return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-10 pb-4 md:pb-6">
-        <section id="popular" className="mb-6 md:mb-8">
-          <div className="flex items-center mb-3 md:mb-4">
-            <h3 className="text-3xl font-medium text-cafe-text">Popular</h3>
-          </div>
-          <p className="text-gray-500">No popular items available at the moment.</p>
-        </section>
-      </main>
+          <section id="popular" className="mb-6 md:mb-8">
+            <div className="flex items-center mb-3 md:mb-4">
+              <h3 className="text-3xl font-medium text-cafe-text">Popular</h3>
+            </div>
+            <p className="text-gray-500">No popular items available at the moment.</p>
+          </section>
+        </main>
       );
     }
 

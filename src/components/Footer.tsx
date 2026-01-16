@@ -108,7 +108,7 @@ const Footer: React.FC = () => {
           {/* Copyright - Centered at the bottom */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-sm text-cafe-textMuted text-center">
-              © 2018 {siteSettings?.site_name || 'AmberKin x GamerXtream'}. All rights reserved.
+              © 2026 {siteSettings?.site_name || 'AmberKin x GamerXtream'}. All rights reserved.
             </p>
             <p className="text-xs text-cafe-textMuted text-center max-w-2xl">
               Not endorsed by or affiliated with the copyright holders. All trademarks remain the property of their respective owners.

@@ -15,32 +15,21 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const isInitialLoad = useRef(true);
-  const shouldContinuePolling = useRef(true);
 
   useEffect(() => {
     if (isOpen && orderId) {
       isInitialLoad.current = true;
-      shouldContinuePolling.current = true;
       loadOrder(true);
-      // Poll for order updates every 3 seconds, but stop if order is in final state
-      const interval = setInterval(() => {
-        // Only continue polling if we should (order is still pending or processing)
-        if (shouldContinuePolling.current) {
-          loadOrder(false);
-        }
-      }, 3000);
+      // Poll for order updates every 3 seconds
+      const interval = setInterval(() => loadOrder(false), 3000);
       return () => clearInterval(interval);
     } else {
-      // Only reset when modal closes AND order is not approved
-      // Keep order data if it was approved so user can see it when reopening
-      if (order?.status !== 'approved') {
-        setOrder(null);
-        setLoading(true);
-        isInitialLoad.current = true;
-        shouldContinuePolling.current = true;
-      }
+      // Reset when modal closes
+      setOrder(null);
+      setLoading(true);
+      isInitialLoad.current = true;
     }
-  }, [isOpen, orderId, order]);
+  }, [isOpen, orderId]);
 
   const loadOrder = async (isInitial: boolean) => {
     if (!orderId) return;
@@ -52,36 +41,17 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
     const orderData = await fetchOrderById(orderId);
     
     if (orderData) {
-      // Stop polling if order reaches final state (approved or rejected)
-      if (orderData.status === 'approved' || orderData.status === 'rejected') {
-        shouldContinuePolling.current = false;
-      }
-      
-      // Always update the order data to ensure it stays visible
-      // This ensures order information remains visible even when status changes to approved
+      // Only update if status or updated_at changed (indicating a real update)
       setOrder(prevOrder => {
         if (!prevOrder || isInitial) {
           return orderData;
         }
-        // Always update to latest order data, especially when status changes to approved
-        // This ensures the order information is always current and visible
+        // Only update if status or updated_at timestamp changed
         if (prevOrder.status !== orderData.status || prevOrder.updated_at !== orderData.updated_at) {
           return orderData;
         }
-        // If status is approved, always keep the approved order data visible
-        if (orderData.status === 'approved') {
-          return orderData;
-        }
-        // Keep previous order if nothing changed (to prevent unnecessary re-renders)
-        return prevOrder;
+        return prevOrder; // Keep previous order to prevent unnecessary re-renders
       });
-    } else {
-      // If order data is not found, only clear on initial load
-      // Otherwise keep the existing order data visible (especially for approved orders)
-      if (isInitial) {
-        setOrder(null);
-      }
-      // Don't clear existing order if fetch fails and we already have order data
     }
     
     if (isInitial) {
@@ -101,7 +71,7 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
       case 'approved':
         return { text: 'Succeeded', icon: CheckCircle, color: 'text-green-400' };
       case 'rejected':
-        return { text: 'Rejected', icon: XCircle, color: 'text-red-400' };
+        return { text: 'Cancelled', icon: XCircle, color: 'text-red-400' };
       default:
         return { text: 'Processing', icon: Loader2, color: 'text-cafe-primary' };
     }
@@ -113,38 +83,31 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="glass-card rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="mb-6">
-          {order && (order.status === 'pending' || order.status === 'processing') && (
-            <p className="text-xs text-yellow-200 mb-4 font-light">
-              Please do not exit this website while your order is being processed
-            </p>
-          )}
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h2 className="text-2xl font-semibold text-cafe-text">Order Status</h2>
-              {order && (
-                <p className="text-sm text-cafe-textMuted mt-1">
-                  Order #{order.id.slice(0, 8)}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                // If order is succeeded and onSucceededClose is provided, call it
-                if (order?.status === 'approved' && onSucceededClose) {
-                  onSucceededClose();
-                } else {
-                  onClose();
-                }
-              }}
-              className="p-2 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200"
-            >
-              <X className="h-5 w-5 text-cafe-text" />
-            </button>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-semibold text-cafe-text">Order Status</h2>
+            {order && (
+              <p className="text-sm text-cafe-textMuted mt-1">
+                Order #{order.id.slice(0, 8)}
+              </p>
+            )}
           </div>
+          <button
+            onClick={() => {
+              // If order is succeeded and onSucceededClose is provided, call it
+              if (order?.status === 'approved' && onSucceededClose) {
+                onSucceededClose();
+              } else {
+                onClose();
+              }
+            }}
+            className="p-2 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200"
+          >
+            <X className="h-5 w-5 text-cafe-text" />
+          </button>
         </div>
 
-        {loading && !order ? (
+        {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 text-cafe-primary animate-spin" />
           </div>
@@ -217,39 +180,13 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
             {/* Customer Information */}
             <div className="glass-strong rounded-lg p-4 border border-cafe-primary/30">
               <h3 className="font-medium text-cafe-text mb-4">Customer Information</h3>
-              {order.customer_info['Multiple Accounts'] ? (
-                // Multiple accounts mode
-                <div className="space-y-4">
-                  {(order.customer_info['Multiple Accounts'] as Array<{
-                    game: string;
-                    package: string;
-                    fields: Record<string, string>;
-                  }>).map((account, accountIndex) => (
-                    <div key={accountIndex} className="pb-4 border-b border-cafe-primary/20 last:border-b-0 last:pb-0">
-                      <div className="mb-2">
-                        <p className="text-sm font-semibold text-cafe-text">{account.game}</p>
-                        <p className="text-xs text-cafe-textMuted">Package: {account.package}</p>
-                      </div>
-                      <div className="space-y-2 mt-2">
-                        {Object.entries(account.fields).map(([key, value]) => (
-                          <p key={key} className="text-sm text-cafe-textMuted">
-                            {key}: {value}
-                          </p>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                // Single account mode (default)
-                <div className="space-y-2">
-                  {Object.entries(order.customer_info).map(([key, value]) => (
-                    <p key={key} className="text-sm text-cafe-textMuted">
-                      {key}: {value}
-                    </p>
-                  ))}
-                </div>
-              )}
+              <div className="space-y-2">
+                {Object.entries(order.customer_info).map(([key, value]) => (
+                  <p key={key} className="text-sm text-cafe-textMuted">
+                    {key}: {value}
+                  </p>
+                ))}
+              </div>
             </div>
           </div>
         ) : (

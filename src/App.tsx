@@ -77,7 +77,7 @@ function MainApp() {
   }, [menuItems, selectedCategory, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-cafe-darkBg">
+    <div className="min-h-screen bg-cafe-darkBg bg-logo-overlay">
       <Header 
         cartItemsCount={cart.getTotalItems()}
         onCartClick={() => handleViewChange('cart')}

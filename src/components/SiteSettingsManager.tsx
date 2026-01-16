@@ -18,8 +18,7 @@ const SiteSettingsManager: React.FC = () => {
     footer_social_3: '',
     footer_social_4: '',
     footer_support_url: '',
-    order_option: 'order_via_messenger' as 'order_via_messenger' | 'place_order',
-    notification_volume: 0.5
+    order_option: 'order_via_messenger' as 'order_via_messenger' | 'place_order'
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
@@ -52,8 +51,7 @@ const SiteSettingsManager: React.FC = () => {
         footer_social_3: siteSettings.footer_social_3 || '',
         footer_social_4: siteSettings.footer_social_4 || '',
         footer_support_url: siteSettings.footer_support_url || '',
-        order_option: siteSettings.order_option || 'order_via_messenger',
-        notification_volume: siteSettings.notification_volume ?? 0.5
+        order_option: siteSettings.order_option || 'order_via_messenger'
       });
       setLogoPreview(siteSettings.site_logo);
     }
@@ -101,8 +99,7 @@ const SiteSettingsManager: React.FC = () => {
         footer_social_3: formData.footer_social_3,
         footer_social_4: formData.footer_social_4,
         footer_support_url: formData.footer_support_url,
-        order_option: formData.order_option,
-        notification_volume: formData.notification_volume
+        order_option: formData.order_option
       });
 
       setIsEditing(false);
@@ -506,34 +503,6 @@ const SiteSettingsManager: React.FC = () => {
               ) : (
                 <p className="text-gray-600">
                   {siteSettings?.order_option === 'place_order' ? 'Place Order' : 'Order via Messenger'}
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Notification Volume */}
-        <div className="border-t border-gray-200 pt-6 mt-6">
-          <h3 className="text-lg font-semibold text-black mb-4">Notification Settings</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notification Volume (0.0 - 1.0)
-              </label>
-              {isEditing ? (
-                <input
-                  type="number"
-                  name="notification_volume"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={formData.notification_volume}
-                  onChange={(e) => setFormData(prev => ({ ...prev, notification_volume: parseFloat(e.target.value) || 0.5 }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                />
-              ) : (
-                <p className="text-gray-600">
-                  {siteSettings?.notification_volume ?? 0.5}
                 </p>
               )}
             </div>

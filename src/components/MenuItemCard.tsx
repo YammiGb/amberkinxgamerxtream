@@ -185,19 +185,19 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               <div className="relative z-10 flex items-start justify-between w-full gap-4">
                 <div className="flex-1 min-w-0">
                   <h3 className="text-xl font-bold text-white drop-shadow-lg">{item.name}</h3>
-                  {item.subtitle && (
+                {item.subtitle && (
                     <p className="text-sm text-white/95 mt-1 drop-shadow-md">{item.subtitle}</p>
-                  )}
-                  {item.description && (
+                )}
+                {item.description && (
                     <p className="text-sm text-white/90 mt-2 drop-shadow-md whitespace-pre-line break-words">{item.description}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowCustomization(false)}
+                )}
+              </div>
+              <button
+                onClick={() => setShowCustomization(false)}
                   className="p-2 hover:bg-white/20 rounded-full transition-colors duration-200 relative z-10 flex-shrink-0"
-                >
+              >
                   <X className="h-5 w-5 text-white drop-shadow-lg" />
-                </button>
+              </button>
               </div>
             </div>
 

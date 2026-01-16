@@ -99,8 +99,6 @@ export interface SiteSettings {
   footer_support_url?: string;
   // Order option
   order_option?: 'order_via_messenger' | 'place_order';
-  // Notification volume
-  notification_volume?: number;
 }
 
 // Order Types
