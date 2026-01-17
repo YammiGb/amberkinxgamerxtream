@@ -622,39 +622,51 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     return lines.join('\n');
   };
 
-  // Helper function to copy text to clipboard (works on iOS)
+  // iOS-compatible copy function with fallback
   const copyToClipboard = async (text: string): Promise<boolean> => {
     // Try modern Clipboard API first
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
         await navigator.clipboard.writeText(text);
         return true;
-      } catch (error) {
-        console.warn('Clipboard API failed, trying fallback:', error);
+      } catch (err) {
+        // Fall through to fallback method
+        console.warn('Clipboard API failed, trying fallback:', err);
       }
     }
-
-    // Fallback for iOS Safari and older browsers
+    
+    // Fallback for iOS and older browsers
     try {
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.left = '-999999px';
-      textArea.style.top = '-999999px';
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
+      // Create a temporary textarea element
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-999999px';
+      textarea.style.top = '-999999px';
+      document.body.appendChild(textarea);
       
-      const successful = document.execCommand('copy');
-      document.body.removeChild(textArea);
+      // Select and copy
+      textarea.focus();
+      textarea.select();
       
-      if (!successful) {
-        throw new Error('execCommand copy failed');
+      // For iOS
+      if (navigator.userAgent.match(/ipad|iphone/i)) {
+        const range = document.createRange();
+        range.selectNodeContents(textarea);
+        const selection = window.getSelection();
+        if (selection) {
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        textarea.setSelectionRange(0, 999999);
       }
       
-      return true;
-    } catch (error) {
-      console.error('Fallback copy method failed:', error);
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      
+      return successful;
+    } catch (err) {
+      console.error('Fallback copy failed:', err);
       return false;
     }
   };
