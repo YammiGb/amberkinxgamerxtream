@@ -676,14 +676,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       // Force generate a new invoice number when Copy is clicked
       // This locks in the invoice number for this order
       const message = await generateOrderMessage(true);
-      const success = await copyToClipboard(message);
-      if (success) {
-        setCopied(true);
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
         setHasCopiedMessage(true); // Mark that copy button has been clicked
         setTimeout(() => setCopied(false), 2000);
-      } else {
-        console.error('Failed to copy message');
-      }
     } catch (error) {
       console.error('Failed to copy message:', error);
     }
@@ -691,13 +687,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
 
   const handleCopyAccountNumber = async (accountNumber: string) => {
     try {
-      const success = await copyToClipboard(accountNumber);
-      if (success) {
-        setCopiedAccountNumber(true);
+      await navigator.clipboard.writeText(accountNumber);
+      setCopiedAccountNumber(true);
         setTimeout(() => setCopiedAccountNumber(false), 2000);
-      } else {
-        console.error('Failed to copy account number');
-      }
     } catch (error) {
       console.error('Failed to copy account number:', error);
     }
@@ -705,13 +697,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
 
   const handleCopyAccountName = async (accountName: string) => {
     try {
-      const success = await copyToClipboard(accountName);
-      if (success) {
-        setCopiedAccountName(true);
+      await navigator.clipboard.writeText(accountName);
+      setCopiedAccountName(true);
         setTimeout(() => setCopiedAccountName(false), 2000);
-      } else {
-        console.error('Failed to copy account name');
-      }
     } catch (error) {
       console.error('Failed to copy account name:', error);
     }
