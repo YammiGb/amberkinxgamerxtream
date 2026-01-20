@@ -1285,6 +1285,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       const savedOrderId = await saveOrderToDb();
 
       if (savedOrderId) {
+        // Store order ID in localStorage for "place_order" option so it can be shown when user returns
+        localStorage.setItem('pendingPlaceOrderId', savedOrderId);
         setIsOrderModalOpen(true);
       } else {
         setReceiptError('Failed to create order. Please try again.');

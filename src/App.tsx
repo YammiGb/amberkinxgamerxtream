@@ -11,20 +11,25 @@ import AdminDashboard from './components/AdminDashboard';
 import MemberLogin from './components/MemberLogin';
 import WelcomeModal from './components/WelcomeModal';
 import MemberProfile from './components/MemberProfile';
+import OrderStatusModal from './components/OrderStatusModal';
 import { useMenu } from './hooks/useMenu';
 import { useMemberAuth } from './hooks/useMemberAuth';
+import { useOrders } from './hooks/useOrders';
 import Footer from './components/Footer';
 
 function MainApp() {
   const cart = useCart();
   const { menuItems } = useMenu();
   const { currentMember, logout, loading: authLoading } = useMemberAuth();
+  const { fetchOrderById } = useOrders();
   const [currentView, setCurrentView] = React.useState<'menu' | 'cart' | 'checkout' | 'member-login'>('menu');
   const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
   const [searchQuery, setSearchQuery] = React.useState<string>('');
   const [showWelcomeModal, setShowWelcomeModal] = React.useState(false);
   const [showMemberProfile, setShowMemberProfile] = React.useState(false);
   const [justLoggedIn, setJustLoggedIn] = React.useState(false);
+  const [pendingOrderId, setPendingOrderId] = React.useState<string | null>(null);
+  const [showOrderStatusModal, setShowOrderStatusModal] = React.useState(false);
 
   const handleViewChange = (view: 'menu' | 'cart' | 'checkout') => {
     setCurrentView(view);
@@ -78,6 +83,43 @@ function MainApp() {
       setJustLoggedIn(true);
     }
   }, [currentMember, currentView, authLoading]);
+
+  // Check for pending order with "place_order" option when app loads
+  React.useEffect(() => {
+    const checkPendingOrder = async () => {
+      // Wait for auth to finish loading
+      if (authLoading) return;
+
+      // Check localStorage for pending order ID
+      const storedOrderId = localStorage.getItem('pendingPlaceOrderId');
+      if (!storedOrderId) return;
+
+      try {
+        // Fetch the order to check its status
+        const order = await fetchOrderById(storedOrderId);
+        
+        if (order && order.order_option === 'place_order') {
+          // Only show modal if order is still pending or processing
+          if (order.status === 'pending' || order.status === 'processing') {
+            setPendingOrderId(storedOrderId);
+            setShowOrderStatusModal(true);
+          } else {
+            // Order is completed (approved/rejected), clear localStorage
+            localStorage.removeItem('pendingPlaceOrderId');
+          }
+        } else {
+          // Order doesn't exist or is not place_order option, clear localStorage
+          localStorage.removeItem('pendingPlaceOrderId');
+        }
+      } catch (error) {
+        console.error('Error checking pending order:', error);
+        // Clear localStorage on error
+        localStorage.removeItem('pendingPlaceOrderId');
+      }
+    };
+
+    checkPendingOrder();
+  }, [authLoading, fetchOrderById]);
 
 
   const handleMemberClick = () => {
@@ -208,6 +250,22 @@ function MainApp() {
           onLogout={handleLogout}
         />
       )}
+
+      {/* Order Status Modal for pending "place_order" orders */}
+      <OrderStatusModal
+        orderId={pendingOrderId}
+        isOpen={showOrderStatusModal}
+        onClose={() => {
+          setShowOrderStatusModal(false);
+          // Don't clear localStorage here - let it clear when order is completed
+        }}
+        onSucceededClose={() => {
+          // Order is approved/rejected, clear localStorage and close modal
+          localStorage.removeItem('pendingPlaceOrderId');
+          setShowOrderStatusModal(false);
+          setPendingOrderId(null);
+        }}
+      />
       
       {currentView !== 'member-login' && (
         <>

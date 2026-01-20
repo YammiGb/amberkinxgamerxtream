@@ -44,10 +44,27 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
       // Only update if status or updated_at changed (indicating a real update)
       setOrder(prevOrder => {
         if (!prevOrder || isInitial) {
+          // On initial load, check if order is already completed
+          if (onSucceededClose && 
+              (orderData.status === 'approved' || orderData.status === 'rejected')) {
+            // Order is already completed, call onSucceededClose to clear localStorage
+            setTimeout(() => {
+              onSucceededClose();
+            }, 0);
+          }
           return orderData;
         }
         // Only update if status or updated_at timestamp changed
         if (prevOrder.status !== orderData.status || prevOrder.updated_at !== orderData.updated_at) {
+          // If order status changed to approved or rejected, call onSucceededClose if provided
+          if (onSucceededClose && 
+              (prevOrder.status === 'pending' || prevOrder.status === 'processing') &&
+              (orderData.status === 'approved' || orderData.status === 'rejected')) {
+            // Use setTimeout to avoid state updates during render
+            setTimeout(() => {
+              onSucceededClose();
+            }, 0);
+          }
           return orderData;
         }
         return prevOrder; // Keep previous order to prevent unnecessary re-renders
@@ -94,8 +111,8 @@ const OrderStatusModal: React.FC<OrderStatusModalProps> = ({ orderId, isOpen, on
           </div>
           <button
             onClick={() => {
-              // If order is succeeded and onSucceededClose is provided, call it
-              if (order?.status === 'approved' && onSucceededClose) {
+              // If order is completed (approved or rejected) and onSucceededClose is provided, call it
+              if ((order?.status === 'approved' || order?.status === 'rejected') && onSucceededClose) {
                 onSucceededClose();
               } else {
                 onClose();
