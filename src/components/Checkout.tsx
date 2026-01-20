@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { ArrowLeft, Upload, X, Copy, Check, MousePointerClick, Download } from 'lucide-react';
-import { CartItem, PaymentMethod, CustomField } from '../types';
-import { usePaymentMethods } from '../hooks/usePaymentMethods';
+import { CartItem, CustomField } from '../types';
+import { usePaymentMethods, PaymentMethod } from '../hooks/usePaymentMethods';
 import { useImageUpload } from '../hooks/useImageUpload';
 import { useOrders } from '../hooks/useOrders';
 import { useSiteSettings } from '../hooks/useSiteSettings';
@@ -23,22 +23,108 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const { siteSettings } = useSiteSettings();
   const { currentMember } = useMemberAuth();
   const orderOption = siteSettings?.order_option || 'order_via_messenger';
+  
+  // Load saved state from localStorage
+  const [paymentMethodId, setPaymentMethodId] = useState<string | null>(() => {
+    return localStorage.getItem('amber_checkout_paymentMethodId');
+  });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const paymentDetailsRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
-  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('amber_checkout_customFieldValues');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(null);
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(() => {
+    return localStorage.getItem('amber_checkout_receiptImageUrl');
+  });
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(() => {
+    return localStorage.getItem('amber_checkout_receiptPreview');
+  });
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [hasCopiedMessage, setHasCopiedMessage] = useState(false);
   const [copiedAccountNumber, setCopiedAccountNumber] = useState(false);
   const [copiedAccountName, setCopiedAccountName] = useState(false);
-  const [bulkInputValues, setBulkInputValues] = useState<Record<string, string>>({});
-  const [bulkSelectedGames, setBulkSelectedGames] = useState<string[]>([]);
-  const [useMultipleAccounts, setUseMultipleAccounts] = useState(false);
+  const [bulkInputValues, setBulkInputValues] = useState<Record<string, string>>(() => {
+    try {
+      const saved = localStorage.getItem('amber_checkout_bulkInputValues');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [bulkSelectedGames, setBulkSelectedGames] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('amber_checkout_bulkSelectedGames');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [useMultipleAccounts, setUseMultipleAccounts] = useState(() => {
+    return localStorage.getItem('amber_checkout_useMultipleAccounts') === 'true';
+  });
+
+  // Restore payment method from saved ID
+  React.useEffect(() => {
+    if (paymentMethodId && paymentMethods.length > 0) {
+      const savedMethod = paymentMethods.find(m => m.id === paymentMethodId);
+      if (savedMethod) {
+        setPaymentMethod(savedMethod);
+      }
+    }
+  }, [paymentMethodId, paymentMethods]);
+
+  // Update paymentMethodId when paymentMethod changes
+  React.useEffect(() => {
+    if (paymentMethod) {
+      setPaymentMethodId(paymentMethod.id);
+      localStorage.setItem('amber_checkout_paymentMethodId', paymentMethod.id);
+    } else {
+      setPaymentMethodId(null);
+      localStorage.removeItem('amber_checkout_paymentMethodId');
+    }
+  }, [paymentMethod]);
+
+  // Save state to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem('amber_checkout_customFieldValues', JSON.stringify(customFieldValues));
+  }, [customFieldValues]);
+
+  React.useEffect(() => {
+    if (receiptImageUrl) {
+      localStorage.setItem('amber_checkout_receiptImageUrl', receiptImageUrl);
+    } else {
+      localStorage.removeItem('amber_checkout_receiptImageUrl');
+    }
+  }, [receiptImageUrl]);
+
+  React.useEffect(() => {
+    if (receiptPreview) {
+      localStorage.setItem('amber_checkout_receiptPreview', receiptPreview);
+    } else {
+      localStorage.removeItem('amber_checkout_receiptPreview');
+    }
+  }, [receiptPreview]);
+
+  React.useEffect(() => {
+    localStorage.setItem('amber_checkout_bulkInputValues', JSON.stringify(bulkInputValues));
+  }, [bulkInputValues]);
+
+  React.useEffect(() => {
+    localStorage.setItem('amber_checkout_bulkSelectedGames', JSON.stringify(bulkSelectedGames));
+  }, [bulkSelectedGames]);
+
+  React.useEffect(() => {
+    localStorage.setItem('amber_checkout_useMultipleAccounts', useMultipleAccounts.toString());
+  }, [useMultipleAccounts]);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
@@ -250,7 +336,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     };
   }, []);
 
-  const selectedPaymentMethod = paymentMethods.find(method => method.id === paymentMethod);
+  const selectedPaymentMethod = paymentMethod;
   
   const handleBulkInputChange = (fieldKey: string, value: string) => {
     setBulkInputValues(prev => ({ ...prev, [fieldKey]: value }));
@@ -666,7 +752,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       const newOrder = await createOrder({
         order_items: cartItems,
         customer_info: customerInfo as Record<string, string> | Array<{ game: string; package: string; fields: Record<string, string> }>,
-        payment_method_id: paymentMethod!,
+          payment_method_id: paymentMethod!.id,
         receipt_url: receiptImageUrl!,
         total_price: totalPrice,
         member_id: currentMember?.id,
@@ -1573,15 +1659,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 key={method.id}
                 type="button"
                 onClick={() => {
-                  setPaymentMethod(method.id as PaymentMethod);
+                  setPaymentMethod(method);
                   setShowPaymentDetailsModal(true);
                 }}
                 className={`p-2 rounded-lg border-2 transition-all duration-200 flex flex-col items-center justify-center gap-0 ${
-                  paymentMethod === method.id
+                  paymentMethod?.id === method.id
                     ? 'border-transparent text-white'
                     : 'glass border-cafe-primary/30 text-cafe-text hover:border-cafe-primary hover:glass-strong'
                 }`}
-                style={paymentMethod === method.id ? { backgroundColor: '#1E7ACB' } : {}}
+                style={paymentMethod?.id === method.id ? { backgroundColor: '#1E7ACB' } : {}}
               >
                 {/* Icon on Top */}
                 <div className="relative w-8 h-8 md:w-14 md:h-14 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-cafe-darkCard to-cafe-darkBg flex items-center justify-center p-0">

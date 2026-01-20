@@ -26,10 +26,48 @@ const Cart: React.FC<CartProps> = ({
   const cartScrollRef = useRef<HTMLDivElement>(null);
   const previousCartItemsLengthRef = useRef<number>(cartItems.length);
 
-  // Scroll to top of page when cart view is opened
+  // Restore scroll position when cart opens (unless coming from item added)
   useEffect(() => {
-    // Scroll to top of the page when cart component mounts or when new items are added
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const skipRestore = localStorage.getItem('amber_skipScrollRestore');
+    if (!skipRestore && cartScrollRef.current) {
+      const savedCartScroll = localStorage.getItem('amber_cartContainerScrollPos');
+      if (savedCartScroll) {
+        setTimeout(() => {
+          if (cartScrollRef.current) {
+            cartScrollRef.current.scrollTop = parseInt(savedCartScroll);
+          }
+        }, 100);
+      }
+    } else if (skipRestore) {
+      // New item added, scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (cartScrollRef.current) {
+        cartScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      localStorage.removeItem('amber_skipScrollRestore');
+    }
+  }, []);
+
+  // Save cart container scroll position
+  useEffect(() => {
+    if (!cartScrollRef.current) return;
+
+    const handleScroll = () => {
+      if (cartScrollRef.current) {
+        localStorage.setItem('amber_cartContainerScrollPos', cartScrollRef.current.scrollTop.toString());
+      }
+    };
+
+    const container = cartScrollRef.current;
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Save on unmount
+    return () => {
+      container.removeEventListener('scroll', handleScroll);
+      if (cartScrollRef.current) {
+        localStorage.setItem('amber_cartContainerScrollPos', cartScrollRef.current.scrollTop.toString());
+      }
+    };
   }, []);
 
   // Scroll cart container to top when new items are added

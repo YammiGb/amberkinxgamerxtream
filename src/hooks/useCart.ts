@@ -1,9 +1,29 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { CartItem, MenuItem, Variation, AddOn } from '../types';
 
 export const useCart = () => {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  // Load cart items from localStorage on mount
+  const [cartItems, setCartItems] = useState<CartItem[]>(() => {
+    try {
+      const savedCartItems = localStorage.getItem('amber_cartItems');
+      if (savedCartItems) {
+        return JSON.parse(savedCartItems);
+      }
+    } catch (error) {
+      console.error('Error loading cart items from localStorage:', error);
+    }
+    return [];
+  });
   const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Save cart items to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('amber_cartItems', JSON.stringify(cartItems));
+    } catch (error) {
+      console.error('Error saving cart items to localStorage:', error);
+    }
+  }, [cartItems]);
 
   const calculateItemPrice = (item: MenuItem, variation?: Variation, addOns?: AddOn[]) => {
     let price = item.basePrice;
