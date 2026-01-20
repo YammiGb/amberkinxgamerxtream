@@ -72,15 +72,16 @@ export const useCart = () => {
         );
       } else {
         // New item, add to cart with unique id that preserves original menu item id
+        // Add new items to the beginning (top) of the cart
         const uniqueId = `${item.id}:::CART:::${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        return [...prev, { 
+        return [{ 
           ...item,
           id: uniqueId,
           quantity,
           selectedVariation: variation,
           selectedAddOns: groupedAddOns,
           totalPrice
-        }];
+        }, ...prev];
       }
     });
   }, []);

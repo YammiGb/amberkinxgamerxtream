@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, Plus, Minus, ArrowLeft, Check, X } from 'lucide-react';
 import { CartItem } from '../types';
 
@@ -23,6 +23,23 @@ const Cart: React.FC<CartProps> = ({
 }) => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const cartScrollRef = useRef<HTMLDivElement>(null);
+  const previousCartItemsLengthRef = useRef<number>(cartItems.length);
+
+  // Scroll to top of page when cart view is opened
+  useEffect(() => {
+    // Scroll to top of the page when cart component mounts or when new items are added
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Scroll cart container to top when new items are added
+  useEffect(() => {
+    // If cart items length increased, scroll cart container to top
+    if (cartItems.length > previousCartItemsLengthRef.current && cartScrollRef.current) {
+      cartScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    previousCartItemsLengthRef.current = cartItems.length;
+  }, [cartItems.length]);
 
   const toggleSelectionMode = () => {
     setSelectionMode(!selectionMode);
@@ -127,6 +144,7 @@ const Cart: React.FC<CartProps> = ({
       )}
 
       <div 
+        ref={cartScrollRef}
         className="flex-1 overflow-y-auto mb-6 min-h-0"
         style={{ 
           WebkitOverflowScrolling: 'touch', 
