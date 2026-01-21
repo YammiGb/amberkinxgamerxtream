@@ -28,6 +28,12 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const { currentMember, isReseller } = useMemberAuth();
   const { getDiscountForItem } = useMemberDiscounts();
   const [memberDiscounts, setMemberDiscounts] = useState<Record<string, number>>({});
+  const [priceUpdateKey, setPriceUpdateKey] = useState(0); // Force re-render when member changes
+
+  // Force price update when member changes (login/logout)
+  useEffect(() => {
+    setPriceUpdateKey(prev => prev + 1);
+  }, [currentMember?.id, currentMember?.user_type]);
 
   // Fetch member discounts for all variations when component mounts or member changes
   useEffect(() => {
@@ -47,7 +53,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     };
     fetchDiscounts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReseller(), currentMember?.id, item.id]);
+  }, [isReseller(), currentMember?.id, item.id, priceUpdateKey]);
 
   // Calculate discounted price for a variation/currency package
   const getDiscountedPrice = async (basePrice: number, variationId?: string): Promise<number> => {
@@ -345,6 +351,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                             <div className="grid grid-cols-2 gap-3">
                               {groupedByCategory[category].variations.map((variation) => {
                                 const originalPrice = variation.price;
+                                // Recalculate price on every render to ensure it updates immediately on login/logout
                                 const discountedPrice = getDiscountedPriceSync(originalPrice, variation.id);
                                 const hasMemberDiscount = isReseller() && currentMember && memberDiscounts[variation.id];
                                 const isDiscounted = hasMemberDiscount || (item.isOnDiscount && item.discountPercentage !== undefined);

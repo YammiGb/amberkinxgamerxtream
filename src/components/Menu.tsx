@@ -136,7 +136,7 @@ const Menu: React.FC<MenuProps> = ({ menuItems, addToCart, cartItems, updateQuan
       
       return (
         <MenuItemCard
-          key={item.id}
+          key={`${item.id}-${currentMember?.id || 'guest'}-${currentMember?.user_type || 'none'}`}
           item={item}
           onAddToCart={addToCart}
           quantity={quantity}
