@@ -1605,7 +1605,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                         {/* Game Title and Description */}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-semibold text-cafe-text">{item.name}</h3>
-                          <p className="text-sm text-cafe-textMuted">Please provide the following information for this game</p>
+                          <p className="text-xs text-cafe-textMuted">Please provide the following information for this game</p>
                         </div>
                       </div>
                       {item.customFields?.map((field) => {
@@ -1715,6 +1715,14 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 </div>
               </button>
             ))}
+          </div>
+
+          {/* Payment instruction - styled as required reading */}
+          <div className="rounded-xl border-l-2 border-cafe-primary border border-cafe-primary/20 bg-cafe-primary/10 p-3">
+            <p className="text-sm font-medium text-cafe-text mb-0.5">Please read</p>
+            <p className="text-xs text-cafe-text leading-snug">
+              Make your payment using your preferred method above, then take a screenshot as proof of your payment to send after placing your order.
+            </p>
           </div>
         </div>
 
