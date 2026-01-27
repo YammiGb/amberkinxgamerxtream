@@ -752,13 +752,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     
     // Total
     lines.push(`TOTAL: ₱${totalPrice}`);
-    lines.push(''); // Break before payment receipt
-    
-    // Payment Receipt
-    lines.push('PAYMENT RECEIPT:');
-    if (receiptImageUrl) {
-      lines.push(receiptImageUrl);
-    }
     
     return lines.join('\n');
   };
@@ -1129,13 +1122,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     
     // Total
     lines.push(`TOTAL: ₱${totalPrice}`);
-    lines.push(''); // Break before payment receipt
-    
-    // Payment Receipt
-    lines.push('PAYMENT RECEIPT:');
-    if (receiptImageUrl) {
-      lines.push(receiptImageUrl);
-    }
     
     return lines.join('\n');
   };
@@ -1779,7 +1765,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
               <button
                 onClick={handlePlaceOrder}
                 disabled={!paymentMethod || !hasCopiedMessage}
-                className={`relative w-full py-4 rounded-xl font-medium text-lg transition-all duration-200 transform ${
+                className={`relative w-full py-4 rounded-xl font-medium text-sm md:text-lg transition-all duration-200 transform ${
                   paymentMethod && hasCopiedMessage
                     ? 'text-white hover:opacity-90 hover:scale-[1.02]'
                     : 'glass text-cafe-textMuted cursor-not-allowed'
