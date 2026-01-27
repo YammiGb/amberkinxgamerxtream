@@ -1719,9 +1719,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
 
           {/* Payment instruction - styled as required reading */}
           <div className="rounded-xl border-l-2 border-cafe-primary border border-cafe-primary/20 bg-cafe-primary/10 p-3">
-            <p className="text-sm font-medium text-cafe-text mb-0.5">Please read</p>
+            <p className="text-sm font-semibold text-cafe-primary mb-1">Please read</p>
             <p className="text-xs text-cafe-text leading-snug">
-              Make your payment using your preferred method above, then take a screenshot as proof of your payment to send after placing your order.
+              Pay using any of the methods above → screenshot the receipt → then send to our Messenger after submitting your order.
             </p>
           </div>
         </div>
@@ -1787,7 +1787,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 }`}>
                   4
                 </div>
-                Proceed transaction to messenger
+                SUBMIT ORDER
               </button>
               
               <p className="text-xs text-cafe-textMuted text-center mt-3">
