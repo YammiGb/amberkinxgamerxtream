@@ -526,48 +526,50 @@ const OrderManager: React.FC = () => {
                 </div>
               </div>
 
-              {/* Receipt */}
-              <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
-                <h3 className="text-xs font-medium text-gray-900 mb-3 md:mb-4">Payment Receipt</h3>
-                <div className="flex flex-col items-center gap-3 md:gap-4">
-                  <a
-                    href={selectedOrder.receipt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block"
-                  >
-                    <img
-                      src={selectedOrder.receipt_url}
-                      alt="Receipt"
-                      className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg border border-gray-300 shadow-sm hover:opacity-80 transition-opacity cursor-pointer"
-                      onError={(e) => {
-                        e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Receipt+Not+Found';
-                      }}
-                    />
-                  </a>
-                  <div className="flex flex-col gap-2 items-center w-full sm:w-auto">
+              {/* Receipt - only show for older orders that have a receipt */}
+              {selectedOrder.receipt_url && (
+                <div className="bg-gray-50 rounded-lg p-3 md:p-4 border border-gray-200">
+                  <h3 className="text-xs font-medium text-gray-900 mb-3 md:mb-4">Payment Receipt</h3>
+                  <div className="flex flex-col items-center gap-3 md:gap-4">
                     <a
                       href={selectedOrder.receipt_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors duration-200 text-blue-700 flex items-center gap-1.5 md:gap-2 text-xs font-medium"
+                      className="block"
                     >
-                      <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                      View Receipt
+                      <img
+                        src={selectedOrder.receipt_url}
+                        alt="Receipt"
+                        className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-lg border border-gray-300 shadow-sm hover:opacity-80 transition-opacity cursor-pointer"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://via.placeholder.com/300x300?text=Receipt+Not+Found';
+                        }}
+                      />
                     </a>
-                    <a
-                      href={selectedOrder.receipt_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      download
-                      className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-gray-700 flex items-center gap-1.5 md:gap-2 text-xs font-medium"
-                    >
-                      <Download className="h-3.5 w-3.5 md:h-4 md:w-4" />
-                      Download Receipt
-                    </a>
+                    <div className="flex flex-col gap-2 items-center w-full sm:w-auto">
+                      <a
+                        href={selectedOrder.receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 md:px-4 md:py-2 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors duration-200 text-blue-700 flex items-center gap-1.5 md:gap-2 text-xs font-medium"
+                      >
+                        <Eye className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        View Receipt
+                      </a>
+                      <a
+                        href={selectedOrder.receipt_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download
+                        className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors duration-200 text-gray-700 flex items-center gap-1.5 md:gap-2 text-xs font-medium"
+                      >
+                        <Download className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        Download Receipt
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Action Buttons */}
               {(selectedOrder.order_option || 'place_order') !== 'order_via_messenger' && (

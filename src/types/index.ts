@@ -113,7 +113,7 @@ export interface Order {
   order_items: CartItem[];
   customer_info: Record<string, string> | Array<{ game: string; package: string; fields: Record<string, string> }>; // Single account: { "IGN": "Miki", "Payment Method": "GCash" } | Multiple accounts: [{ game: "MLBB", package: "Package 1", fields: {...} }]
   payment_method_id: string;
-  receipt_url: string;
+  receipt_url?: string | null;
   total_price: number;
   status: OrderStatus;
   order_option?: 'order_via_messenger' | 'place_order';
@@ -126,7 +126,7 @@ export interface CreateOrderData {
   order_items: CartItem[];
   customer_info: Record<string, string> | Array<{ game: string; package: string; fields: Record<string, string> }>;
   payment_method_id: string;
-  receipt_url: string;
+  receipt_url?: string | null;
   total_price: number;
   member_id?: string;
   order_option?: 'order_via_messenger' | 'place_order';

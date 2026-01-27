@@ -44,9 +44,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const [receiptImageUrl, setReceiptImageUrl] = useState<string | null>(() => {
     return localStorage.getItem('amber_checkout_receiptImageUrl');
   });
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(() => {
-    return localStorage.getItem('amber_checkout_receiptPreview');
-  });
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [hasCopiedMessage, setHasCopiedMessage] = useState(false);
@@ -96,7 +94,13 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   React.useEffect(() => {
     if (paymentMethod) {
       setPaymentMethodId(paymentMethod.id);
-      localStorage.setItem('amber_checkout_paymentMethodId', paymentMethod.id);
+      try {
+        localStorage.setItem('amber_checkout_paymentMethodId', paymentMethod.id);
+      } catch (e) {
+        if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+          console.warn('localStorage quota exceeded');
+        }
+      }
     } else {
       setPaymentMethodId(null);
       localStorage.removeItem('amber_checkout_paymentMethodId');
@@ -114,37 +118,43 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     }
   }, [totalPrice, paymentMethod]);
 
-  // Save state to localStorage whenever it changes
+  // Save state to localStorage whenever it changes (catch quota errors so app doesn't crash)
+  const safeSetItem = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      if (e instanceof DOMException && (e.name === 'QuotaExceededError' || e.code === 22)) {
+        console.warn('localStorage quota exceeded, skipping save for', key);
+      } else {
+        throw e;
+      }
+    }
+  };
+
   React.useEffect(() => {
-    localStorage.setItem('amber_checkout_customFieldValues', JSON.stringify(customFieldValues));
+    safeSetItem('amber_checkout_customFieldValues', JSON.stringify(customFieldValues));
   }, [customFieldValues]);
 
   React.useEffect(() => {
     if (receiptImageUrl) {
-      localStorage.setItem('amber_checkout_receiptImageUrl', receiptImageUrl);
+      safeSetItem('amber_checkout_receiptImageUrl', receiptImageUrl);
     } else {
       localStorage.removeItem('amber_checkout_receiptImageUrl');
     }
   }, [receiptImageUrl]);
 
-  React.useEffect(() => {
-    if (receiptPreview) {
-      localStorage.setItem('amber_checkout_receiptPreview', receiptPreview);
-    } else {
-      localStorage.removeItem('amber_checkout_receiptPreview');
-    }
-  }, [receiptPreview]);
+  // Do not persist receiptPreview to localStorage - base64 images exceed quota
 
   React.useEffect(() => {
-    localStorage.setItem('amber_checkout_bulkInputValues', JSON.stringify(bulkInputValues));
+    safeSetItem('amber_checkout_bulkInputValues', JSON.stringify(bulkInputValues));
   }, [bulkInputValues]);
 
   React.useEffect(() => {
-    localStorage.setItem('amber_checkout_bulkSelectedGames', JSON.stringify(bulkSelectedGames));
+    safeSetItem('amber_checkout_bulkSelectedGames', JSON.stringify(bulkSelectedGames));
   }, [bulkSelectedGames]);
 
   React.useEffect(() => {
-    localStorage.setItem('amber_checkout_useMultipleAccounts', useMultipleAccounts.toString());
+    safeSetItem('amber_checkout_useMultipleAccounts', useMultipleAccounts.toString());
   }, [useMultipleAccounts]);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -774,7 +784,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
         order_items: cartItems,
         customer_info: customerInfo as Record<string, string> | Array<{ game: string; package: string; fields: Record<string, string> }>,
           payment_method_id: paymentMethod!.id,
-        receipt_url: receiptImageUrl!,
+        receipt_url: receiptImageUrl ?? null,
         total_price: totalPrice,
         member_id: currentMember?.id,
         order_option: orderOption,
@@ -1363,11 +1373,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       setReceiptError('Please select a payment method');
       return;
     }
-    
-    if (!receiptImageUrl) {
-      setReceiptError('Please upload your payment receipt before placing the order');
-      return;
-    }
 
     // Save order to database if not already saved
     await saveOrderToDb();
@@ -1385,11 +1390,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const handlePlaceOrderDirect = async () => {
     if (!paymentMethod) {
       setReceiptError('Please select a payment method');
-      return;
-    }
-    
-    if (!receiptImageUrl) {
-      setReceiptError('Please upload your payment receipt before placing the order');
       return;
     }
 
@@ -1675,13 +1675,18 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
 
         {/* Payment Section */}
         <div>
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-2">
             <div className="w-6 h-6 rounded-full bg-cafe-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
               2
             </div>
             <h2 className="text-sm font-medium text-cafe-text">Choose Payment Method</h2>
           </div>
-          
+          {paymentMethod && (
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-6 flex-shrink-0" aria-hidden />
+              <p className="text-sm text-cafe-text">{paymentMethod.name} Selected</p>
+            </div>
+          )}
           <div className="grid grid-cols-6 gap-1 md:gap-2 mb-6">
             {paymentMethods
               .filter((method) => {
@@ -1725,118 +1730,37 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
               </button>
             ))}
           </div>
-
-
-          {/* Receipt Upload Section */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-6 h-6 rounded-full bg-cafe-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                3
-              </div>
-              <label className="text-sm font-medium text-cafe-text">
-                Payment Receipt <span className="text-red-400">*</span>
-              </label>
-            </div>
-            
-            {!receiptPreview ? (
-              <div className="relative glass border-2 border-dashed border-cafe-primary/30 rounded-lg p-6 text-center hover:border-cafe-primary transition-colors duration-200">
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      handleReceiptUpload(file);
-                    }
-                  }}
-                  className="hidden"
-                  id="receipt-upload"
-                  disabled={uploadingReceipt}
-                />
-                <label
-                  htmlFor="receipt-upload"
-                  className={`cursor-pointer flex flex-col items-center space-y-2 ${uploadingReceipt ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {uploadingReceipt ? (
-                    <>
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cafe-primary"></div>
-                      <span className="text-sm text-cafe-textMuted">Uploading...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-8 w-8 text-cafe-primary" />
-                      <span className="text-sm text-cafe-text">Click to upload receipt</span>
-                      <span className="text-xs text-cafe-textMuted">JPEG, PNG, WebP, or GIF (Max 5MB)</span>
-                    </>
-                  )}
-                </label>
-              </div>
-            ) : (
-              <div className="relative glass border border-cafe-primary/30 rounded-lg p-4">
-                <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-cafe-primary text-white flex items-center justify-center text-xs font-bold">
-                  1
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="flex-shrink-0">
-                    <img
-                      src={receiptPreview}
-                      alt="Receipt preview"
-                      className="w-20 h-20 object-cover rounded-lg border border-cafe-primary/30"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-cafe-text truncate">
-                      {receiptFile?.name || 'Receipt uploaded'}
-                    </p>
-                    <p className="text-xs text-cafe-textMuted">
-                      {receiptImageUrl ? '✓ Uploaded successfully' : 'Uploading...'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleReceiptRemove}
-                    className="flex-shrink-0 p-2 glass-strong rounded-lg hover:bg-red-500/20 transition-colors duration-200"
-                    disabled={uploadingReceipt}
-                  >
-                    <X className="h-4 w-4 text-cafe-text" />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {receiptError && (
-              <p className="mt-2 text-sm text-red-400">{receiptError}</p>
-            )}
-
-            <p className="text-xs text-cafe-textMuted text-center mt-3">
-              Please upload a screenshot of your payment receipt. This helps us verify and process your order quickly.
-            </p>
-          </div>
         </div>
 
         {/* Separator */}
         <div className="border-t border-cafe-primary/30 my-6"></div>
+
+      {/* Checkout error message */}
+      {receiptError && (
+        <p className="text-sm text-red-400 mb-4 text-center">{receiptError}</p>
+      )}
 
       {/* Place Order Section */}
       <div>
         <div ref={buttonsRef}>
           {orderOption === 'order_via_messenger' ? (
             <>
-              {/* Copy button - must be clicked before placing order */}
+              {/* Copy button - must be clicked before proceeding */}
               <button
                 onClick={handleCopyMessage}
-                disabled={uploadingReceipt || !paymentMethod || !receiptImageUrl}
+                disabled={!paymentMethod}
                 className={`relative w-full py-3 rounded-xl font-medium transition-all duration-200 transform mb-3 flex items-center justify-center space-x-2 ${
-                  !uploadingReceipt && paymentMethod && receiptImageUrl
+                  paymentMethod
                     ? 'glass border border-cafe-primary/30 text-cafe-text hover:border-cafe-primary hover:glass-strong'
                     : 'glass border border-cafe-primary/20 text-cafe-textMuted cursor-not-allowed'
                 }`}
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  !uploadingReceipt && paymentMethod && receiptImageUrl
+                  paymentMethod
                     ? 'bg-cafe-primary text-white'
                     : 'bg-cafe-textMuted/30 text-cafe-textMuted'
                 }`}>
-                  4
+                  3
                 </div>
                 {copied ? (
                   <>
@@ -1851,29 +1775,29 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 )}
               </button>
 
-              {/* Place Order button - requires payment method, receipt, and copy button to be clicked */}
+              {/* Proceed to Messenger button - requires payment method and copy to be clicked */}
               <button
                 onClick={handlePlaceOrder}
-                disabled={!paymentMethod || !receiptImageUrl || uploadingReceipt || !hasCopiedMessage}
+                disabled={!paymentMethod || !hasCopiedMessage}
                 className={`relative w-full py-4 rounded-xl font-medium text-lg transition-all duration-200 transform ${
-                  paymentMethod && receiptImageUrl && !uploadingReceipt && hasCopiedMessage
+                  paymentMethod && hasCopiedMessage
                     ? 'text-white hover:opacity-90 hover:scale-[1.02]'
                     : 'glass text-cafe-textMuted cursor-not-allowed'
                 }`}
-                style={paymentMethod && receiptImageUrl && !uploadingReceipt && hasCopiedMessage ? { backgroundColor: '#1E7ACB' } : {}}
+                style={paymentMethod && hasCopiedMessage ? { backgroundColor: '#1E7ACB' } : {}}
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  paymentMethod && receiptImageUrl && !uploadingReceipt && hasCopiedMessage
+                  paymentMethod && hasCopiedMessage
                     ? 'bg-cafe-primary text-white'
                     : 'bg-cafe-textMuted/30 text-cafe-textMuted'
                 }`}>
-                  5
+                  4
                 </div>
-                {uploadingReceipt ? 'Uploading Receipt...' : 'Order via Messenger'}
+                Proceed transaction to messenger
               </button>
               
               <p className="text-xs text-cafe-textMuted text-center mt-3">
-                You'll be redirected to Facebook Messenger to confirm your order. Your receipt has been uploaded and will be included in the message.
+                You'll be redirected to Facebook Messenger to confirm your order.
               </p>
             </>
           ) : (
@@ -1881,20 +1805,20 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
               {/* Place Order button - for place_order option */}
               <button
                 onClick={handlePlaceOrderDirect}
-                disabled={!paymentMethod || !receiptImageUrl || uploadingReceipt || isPlacingOrder}
+                disabled={!paymentMethod || isPlacingOrder}
                 className={`relative w-full py-4 rounded-xl font-medium text-lg transition-all duration-200 transform ${
-                  paymentMethod && receiptImageUrl && !uploadingReceipt && !isPlacingOrder
+                  paymentMethod && !isPlacingOrder
                     ? 'text-white hover:opacity-90 hover:scale-[1.02]'
                     : 'glass text-cafe-textMuted cursor-not-allowed'
                 }`}
-                style={paymentMethod && receiptImageUrl && !uploadingReceipt && !isPlacingOrder ? { backgroundColor: '#1E7ACB' } : {}}
+                style={paymentMethod && !isPlacingOrder ? { backgroundColor: '#1E7ACB' } : {}}
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  paymentMethod && receiptImageUrl && !uploadingReceipt && !isPlacingOrder
+                  paymentMethod && !isPlacingOrder
                     ? 'bg-cafe-primary text-white'
                     : 'bg-cafe-textMuted/30 text-cafe-textMuted'
                 }`}>
-                  4
+                  3
                 </div>
                 {isPlacingOrder ? 'Placing Order...' : 'Place Order'}
               </button>
@@ -1918,7 +1842,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             </div>
 
             <p className="text-xs text-cafe-textMuted mb-6">
-              Press the copy button to copy the number or download the QR code, make a payment, then proceed to upload your receipt.
+              Press the copy button to copy the number or download the QR code, then make your payment and proceed to messenger.
             </p>
 
             <div className="space-y-4">
