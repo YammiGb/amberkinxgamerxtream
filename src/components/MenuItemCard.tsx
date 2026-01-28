@@ -148,7 +148,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         onClick={handleCardClick}
         className={`relative flex flex-row items-center transition-all duration-300 group rounded-xl p-3 md:p-4 gap-2 md:gap-3 ${!item.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
         style={{
-          background: '#D4C4A8',
+          background: '#F5F0E6',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
           minHeight: '100px'
         }}
@@ -162,7 +162,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         }}
         onMouseLeave={(e) => {
           if (item.available) {
-            e.currentTarget.style.background = '#D4C4A8';
+            e.currentTarget.style.background = '#F5F0E6';
             e.currentTarget.style.backdropFilter = 'none';
             e.currentTarget.style.webkitBackdropFilter = 'none';
             e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';

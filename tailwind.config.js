@@ -5,16 +5,16 @@ export default {
     extend: {
       colors: {
         cafe: {
-          accent: '#D4C4A8', // Cream accent
+          accent: '#F5F0E6', // Light cream accent (from branding image)
           dark: '#0F0F0F', // Off-black
           cream: '#F5F0E6',
           beige: '#E8E0D0',
-          latte: '#D4C4A8',
-          espresso: '#B8A88A',
+          latte: '#F5F0E6',
+          espresso: '#E8E0D0',
           light: '#FAF7F2',
           // Cream & off-black theme
-          primary: '#D4C4A8', // Cream primary
-          secondary: '#E8DCC4', // Lighter cream
+          primary: '#F5F0E6', // Light cream primary (from branding image)
+          secondary: '#E8E0D0', // Slightly darker cream for contrast
           darkBg: '#0F0F0F', // Off-black background
           darkCard: '#1A1A1A', // Card background
           glass: 'rgba(255, 255, 255, 0.06)', // Glass effect

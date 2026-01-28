@@ -1697,7 +1697,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     ? 'border-transparent'
                     : 'glass border-cafe-primary/30 hover:border-cafe-primary hover:glass-strong'
                 }`}
-                style={paymentMethod?.id === method.id ? { backgroundColor: '#D4C4A8' } : {}}
+                style={paymentMethod?.id === method.id ? { backgroundColor: '#F5F0E6' } : {}}
               >
                 {/* Icon fills the card */}
                 <div className="relative w-full aspect-square flex-shrink-0 overflow-hidden bg-gradient-to-br from-cafe-darkCard to-cafe-darkBg rounded-lg">
@@ -1778,7 +1778,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     ? 'text-neutral-800 hover:opacity-90 hover:scale-[1.02]'
                     : 'glass text-cafe-textMuted cursor-not-allowed'
                 }`}
-                style={paymentMethod && hasCopiedMessage ? { backgroundColor: '#D4C4A8' } : {}}
+                style={paymentMethod && hasCopiedMessage ? { backgroundColor: '#F5F0E6' } : {}}
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   paymentMethod && hasCopiedMessage
@@ -1805,7 +1805,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     ? 'text-neutral-800 hover:opacity-90 hover:scale-[1.02]'
                     : 'glass text-cafe-textMuted cursor-not-allowed'
                 }`}
-                style={paymentMethod && !isPlacingOrder ? { backgroundColor: '#D4C4A8' } : {}}
+                style={paymentMethod && !isPlacingOrder ? { backgroundColor: '#F5F0E6' } : {}}
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   paymentMethod && !isPlacingOrder
