@@ -146,7 +146,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     <>
       <div 
         onClick={handleCardClick}
-        className={`relative flex flex-row items-center transition-all duration-300 group rounded-xl p-3 md:p-4 gap-2 md:gap-3 ${!item.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+        className={`relative flex flex-row items-center transition-all duration-300 group rounded-xl p-3 md:p-4 gap-2 md:gap-3 ${!item.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer menu-game-card'}`}
         style={{
           background: '#F5F0E6',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',

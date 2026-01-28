@@ -40,18 +40,35 @@
   transition: all 0.2s ease;
 }
 
+/* Match game menu card hover: frosted glass + stronger shadow (darker feel) */
 .package-card-hover:hover {
-  background: #F5F0E6 !important;
-  border: 2px solid #F5F0E6 !important;
-  box-shadow: 0 4px 12px 0 rgba(245, 240, 230, 0.4) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
   transform: scale(1.02) !important;
 }
 
+/* All text light on hover for contrast on frosted dark background */
 .package-card-hover:hover .font-semibold,
 .package-card-hover:hover .text-gray-900,
 .package-card-hover:hover .text-gray-600,
-.package-card-hover:hover .text-base {
-  color: #171717 !important; /* dark text on cream hover */
+.package-card-hover:hover .text-gray-500,
+.package-card-hover:hover .text-base,
+.package-card-hover:hover .text-sm,
+.package-card-hover:hover .text-xs,
+.package-card-hover:hover .font-bold {
+  color: #f5f0e6 !important; /* cream/light text on hover */
+}
+.package-card-hover:hover .text-green-600 {
+  color: #86efac !important; /* light green for "Member Price" on hover */
+}
+
+/* Menu game cards: light text on hover (same as package cards) */
+.menu-game-card:hover .text-neutral-800,
+.menu-game-card:hover .text-neutral-700 {
+  color: #f5f0e6 !important;
 }
 
 /* Glow effects - cream theme */
