@@ -1720,7 +1720,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           {/* Payment instruction - styled as required reading */}
           <div className="rounded-xl border-l-2 border-cafe-primary border border-cafe-primary/20 bg-cafe-primary/10 p-3">
             <p className="text-sm font-semibold text-cafe-primary mb-1">Please read</p>
-            <p className="text-xs text-cafe-text leading-snug">
+            <p className="text-sm text-cafe-text leading-snug">
               Pay using any of the methods above → screenshot the receipt → then send to our Messenger after submitting your order.
             </p>
           </div>
