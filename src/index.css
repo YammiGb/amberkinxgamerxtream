@@ -51,7 +51,7 @@
 .package-card-hover:hover .text-gray-900,
 .package-card-hover:hover .text-gray-600,
 .package-card-hover:hover .text-base {
-  color: white !important;
+  color: #171717 !important; /* dark text on cream hover */
 }
 
 /* Glow effects - cream theme */
