@@ -91,7 +91,7 @@ const MemberLogin: React.FC<MemberLoginProps> = ({ onBack, onLoginSuccess }) => 
         <div className="glass-card rounded-xl p-6">
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-cafe-primary to-cafe-secondary rounded-full mb-4">
-              <User className="h-8 w-8 text-white" />
+              <User className="h-8 w-8 text-neutral-800" />
             </div>
             <h2 className="text-2xl font-semibold text-cafe-text mb-2">
               {isLogin ? 'Member Login' : 'Member Registration'}
@@ -191,7 +191,7 @@ const MemberLogin: React.FC<MemberLoginProps> = ({ onBack, onLoginSuccess }) => 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-cafe-primary to-cafe-secondary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-gradient-to-r from-cafe-primary to-cafe-secondary text-neutral-800 rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Processing...' : isLogin ? 'Login' : 'Register'}
             </button>

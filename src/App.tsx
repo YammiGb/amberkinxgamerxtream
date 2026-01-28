@@ -150,9 +150,9 @@ function MainApp() {
     setCurrentView('cart');
   }, []);
 
-  // Check if there are any popular items
+  // Check if there are any popular items (only among available items)
   const hasPopularItems = React.useMemo(() => {
-    return menuItems.some(item => Boolean(item.popular) === true);
+    return menuItems.some(item => item.available !== false && Boolean(item.popular) === true);
   }, [menuItems]);
 
   // If user is on popular category but there are no popular items, redirect to 'all'
@@ -246,7 +246,8 @@ function MainApp() {
 
   // Filter menu items based on selected category and search query
   const filteredMenuItems = React.useMemo(() => {
-    let filtered = menuItems;
+    // Hide items marked unavailable by admin
+    let filtered = menuItems.filter(item => item.available !== false);
 
     // First filter by category
     if (selectedCategory === 'popular') {

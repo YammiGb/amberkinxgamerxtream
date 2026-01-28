@@ -122,8 +122,8 @@ const Cart: React.FC<CartProps> = ({
           <p className="text-cafe-textMuted mb-6">Add some currency packages to get started!</p>
           <button
             onClick={onContinueShopping}
-            className="text-white px-6 py-3 rounded-full hover:opacity-90 transition-all duration-200"
-            style={{ backgroundColor: '#1E7ACB' }}
+            className="text-neutral-800 font-medium px-6 py-3 rounded-full hover:opacity-90 transition-all duration-200"
+            style={{ backgroundColor: '#D4C4A8' }}
           >
             Browse Games
           </button>
@@ -272,8 +272,8 @@ const Cart: React.FC<CartProps> = ({
           </button>
           <button
             onClick={onCheckout}
-            className="flex-1 text-white py-2 rounded-xl hover:opacity-90 transition-all duration-200 transform hover:scale-[1.02] font-medium text-sm"
-            style={{ backgroundColor: '#1E7ACB' }}
+            className="flex-1 text-neutral-800 py-2 rounded-xl hover:opacity-90 transition-all duration-200 transform hover:scale-[1.02] font-medium text-sm"
+            style={{ backgroundColor: '#D4C4A8' }}
           >
             Checkout
           </button>

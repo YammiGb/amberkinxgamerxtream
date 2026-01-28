@@ -19,11 +19,11 @@
 }
 
 .glass-card {
-  background: rgba(10, 31, 46, 0.6);
+  background: rgba(26, 26, 26, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(96, 165, 250, 0.3);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  border: 1px solid rgba(212, 196, 168, 0.25);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
 }
 
 .glass-hover {
@@ -31,9 +31,9 @@
 }
 
 .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(96, 165, 250, 0.5);
-  box-shadow: 0 8px 32px 0 rgba(96, 165, 250, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(212, 196, 168, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(212, 196, 168, 0.15);
 }
 
 .package-card-hover {
@@ -41,9 +41,9 @@
 }
 
 .package-card-hover:hover {
-  background: #1565A8 !important;
-  border: 2px solid #1565A8 !important;
-  box-shadow: 0 4px 12px 0 rgba(21, 101, 168, 0.4) !important;
+  background: #D4C4A8 !important;
+  border: 2px solid #D4C4A8 !important;
+  box-shadow: 0 4px 12px 0 rgba(212, 196, 168, 0.35) !important;
   transform: scale(1.02) !important;
 }
 
@@ -54,51 +54,51 @@
   color: white !important;
 }
 
-/* Glow effects for in-game theme */
+/* Glow effects - cream theme */
 .glow-blue {
-  box-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+  box-shadow: 0 0 20px rgba(212, 196, 168, 0.4);
 }
 
 .glow-blue-strong {
-  box-shadow: 0 0 30px rgba(96, 165, 250, 0.8);
+  box-shadow: 0 0 30px rgba(212, 196, 168, 0.5);
 }
 
 /* Text glow */
 .text-glow {
-  text-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+  text-shadow: 0 0 10px rgba(212, 196, 168, 0.5);
 }
 
-/* Legacy cafe color helpers (for compatibility) */
+/* Legacy cafe color helpers (cream theme) */
 .bg-cafe-cream {
-  background-color: #E0F2FE;
+  background-color: #F5F0E6;
 }
 
 .bg-cafe-beige {
-  background-color: #BAE6FD;
+  background-color: #E8E0D0;
 }
 
 .bg-cafe-light {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 .text-cafe-accent {
-  color: #60A5FA;
+  color: #D4C4A8;
 }
 
 .text-cafe-dark {
-  color: #E0F2FE;
+  color: #FAF7F2;
 }
 
 .border-cafe-accent {
-  border-color: #60A5FA;
+  border-color: #D4C4A8;
 }
 
 .border-cafe-latte {
-  border-color: rgba(96, 165, 250, 0.3);
+  border-color: rgba(212, 196, 168, 0.3);
 }
 
 .ring-cafe-accent {
-  --tw-ring-color: #60A5FA;
+  --tw-ring-color: #D4C4A8;
 }
 
 /* Hide scrollbar for mobile nav */

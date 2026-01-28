@@ -205,7 +205,7 @@ const MemberDashboard: React.FC = () => {
                   className="flex items-center justify-between p-3 md:p-4 bg-gray-50 rounded-lg"
                 >
                   <div className="flex items-center space-x-3 md:space-x-4 flex-1 min-w-0">
-                    <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r from-blue-600 to-blue-500 rounded-full text-white font-bold text-sm md:text-base flex-shrink-0">
+                    <div className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r from-cafe-primary to-cafe-secondary rounded-full text-white font-bold text-sm md:text-base flex-shrink-0">
                       {index + 1}
                     </div>
                     <div className="min-w-0 flex-1">

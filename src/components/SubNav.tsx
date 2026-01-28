@@ -43,7 +43,7 @@ const SubNav: React.FC<SubNavProps> = ({ selectedCategory, onCategoryClick, sear
                     ? 'text-white border-transparent bg-cafe-primary'
                     : 'bg-transparent text-cafe-text border-cafe-primary/30 hover:border-cafe-primary hover:bg-white/50'
                 }`}
-                style={isSearchFocused || searchQuery ? { backgroundColor: '#1E7ACB' } : {}}
+                style={isSearchFocused || searchQuery ? { backgroundColor: '#D4C4A8' } : {}}
               />
               {searchQuery && (
                 <button
@@ -73,7 +73,7 @@ const SubNav: React.FC<SubNavProps> = ({ selectedCategory, onCategoryClick, sear
                       ? 'text-white border-transparent'
                       : 'bg-transparent text-cafe-text border-cafe-primary/30 hover:border-cafe-primary hover:bg-white/50'
                   }`}
-                  style={selectedCategory === 'all' ? { backgroundColor: '#1E7ACB' } : {}}
+                  style={selectedCategory === 'all' ? { backgroundColor: '#D4C4A8' } : {}}
                 >
                   All
                 </button>
@@ -85,7 +85,7 @@ const SubNav: React.FC<SubNavProps> = ({ selectedCategory, onCategoryClick, sear
                         ? 'text-white border-transparent'
                         : 'bg-transparent text-cafe-text border-cafe-primary/30 hover:border-cafe-primary hover:bg-white/50'
                     }`}
-                    style={selectedCategory === 'popular' ? { backgroundColor: '#1E7ACB' } : {}}
+                    style={selectedCategory === 'popular' ? { backgroundColor: '#D4C4A8' } : {}}
                   >
                     Popular
                   </button>
@@ -99,7 +99,7 @@ const SubNav: React.FC<SubNavProps> = ({ selectedCategory, onCategoryClick, sear
                         ? 'text-white border-transparent'
                         : 'bg-transparent text-cafe-text border-cafe-primary/30 hover:border-cafe-primary hover:bg-white/50'
                     }`}
-                    style={selectedCategory === c.id ? { backgroundColor: '#1E7ACB' } : {}}
+                    style={selectedCategory === c.id ? { backgroundColor: '#D4C4A8' } : {}}
                   >
                     {c.name}
                   </button>

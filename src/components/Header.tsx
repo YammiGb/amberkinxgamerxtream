@@ -64,7 +64,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
             >
               <ShoppingCart className="h-6 w-6" />
               {cartItemsCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-cafe-primary to-cafe-secondary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-bounce-gentle glow-blue">
+                <span className="absolute -top-1 -right-1 bg-gradient-to-r from-cafe-primary to-cafe-secondary text-neutral-800 text-xs font-semibold rounded-full h-5 w-5 flex items-center justify-center animate-bounce-gentle glow-blue">
                   {cartItemsCount}
                 </span>
               )}

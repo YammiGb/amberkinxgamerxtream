@@ -95,7 +95,7 @@ const MemberProfile: React.FC<MemberProfileProps> = ({ onClose, onLogout }) => {
               {/* User Info */}
               <div className="text-center mb-6">
                 <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-cafe-primary to-cafe-secondary rounded-full mb-4">
-                  <User className="h-10 w-10 text-white" />
+                  <User className="h-10 w-10 text-neutral-800" />
                 </div>
                 <h3 className="text-2xl font-semibold text-cafe-text mb-2">
                   {currentMember.username}

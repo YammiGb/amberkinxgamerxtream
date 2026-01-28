@@ -1448,7 +1448,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           {/* Customer Details Form */}
           <div>
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-6 h-6 rounded-full bg-cafe-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+              <div className="w-6 h-6 rounded-full bg-cafe-primary text-neutral-800 flex items-center justify-center text-xs font-bold flex-shrink-0">
                 1
               </div>
               <h2 className="text-sm font-medium text-cafe-text">Customer Information</h2>
@@ -1662,7 +1662,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
         {/* Payment Section */}
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-6 h-6 rounded-full bg-cafe-primary text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-cafe-primary text-neutral-800 flex items-center justify-center text-xs font-bold flex-shrink-0">
               2
             </div>
             <h2 className="text-sm font-medium text-cafe-text">Choose Payment Method</h2>
@@ -1697,7 +1697,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     ? 'border-transparent'
                     : 'glass border-cafe-primary/30 hover:border-cafe-primary hover:glass-strong'
                 }`}
-                style={paymentMethod?.id === method.id ? { backgroundColor: '#1E7ACB' } : {}}
+                style={paymentMethod?.id === method.id ? { backgroundColor: '#D4C4A8' } : {}}
               >
                 {/* Icon fills the card */}
                 <div className="relative w-full aspect-square flex-shrink-0 overflow-hidden bg-gradient-to-br from-cafe-darkCard to-cafe-darkBg rounded-lg">
@@ -1751,7 +1751,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   paymentMethod
-                    ? 'bg-cafe-primary text-white'
+                    ? 'bg-cafe-primary text-neutral-800'
                     : 'bg-cafe-textMuted/30 text-cafe-textMuted'
                 }`}>
                   3
@@ -1775,14 +1775,14 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 disabled={!paymentMethod || !hasCopiedMessage}
                 className={`relative w-full py-4 rounded-xl font-medium text-sm md:text-lg transition-all duration-200 transform ${
                   paymentMethod && hasCopiedMessage
-                    ? 'text-white hover:opacity-90 hover:scale-[1.02]'
+                    ? 'text-neutral-800 hover:opacity-90 hover:scale-[1.02]'
                     : 'glass text-cafe-textMuted cursor-not-allowed'
                 }`}
-                style={paymentMethod && hasCopiedMessage ? { backgroundColor: '#1E7ACB' } : {}}
+                style={paymentMethod && hasCopiedMessage ? { backgroundColor: '#D4C4A8' } : {}}
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   paymentMethod && hasCopiedMessage
-                    ? 'bg-cafe-primary text-white'
+                    ? 'bg-cafe-primary text-neutral-800'
                     : 'bg-cafe-textMuted/30 text-cafe-textMuted'
                 }`}>
                   4
@@ -1802,14 +1802,14 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 disabled={!paymentMethod || isPlacingOrder}
                 className={`relative w-full py-4 rounded-xl font-medium text-lg transition-all duration-200 transform ${
                   paymentMethod && !isPlacingOrder
-                    ? 'text-white hover:opacity-90 hover:scale-[1.02]'
+                    ? 'text-neutral-800 hover:opacity-90 hover:scale-[1.02]'
                     : 'glass text-cafe-textMuted cursor-not-allowed'
                 }`}
-                style={paymentMethod && !isPlacingOrder ? { backgroundColor: '#1E7ACB' } : {}}
+                style={paymentMethod && !isPlacingOrder ? { backgroundColor: '#D4C4A8' } : {}}
               >
                 <div className={`absolute top-2 left-2 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                   paymentMethod && !isPlacingOrder
-                    ? 'bg-cafe-primary text-white'
+                    ? 'bg-cafe-primary text-neutral-800'
                     : 'bg-cafe-textMuted/30 text-cafe-textMuted'
                 }`}>
                   3

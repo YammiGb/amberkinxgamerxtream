@@ -28,7 +28,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ username, onClose, onGetSta
 
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-cafe-primary to-cafe-secondary rounded-full mb-4">
-            <CheckCircle className="h-8 w-8 text-white" />
+            <CheckCircle className="h-8 w-8 text-neutral-800" />
           </div>
           <p className="text-cafe-textMuted mb-6">
             Enjoy exclusive member benefits!
@@ -38,7 +38,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ username, onClose, onGetSta
               onClose();
               onGetStarted();
             }}
-            className="px-6 py-3 bg-gradient-to-r from-cafe-primary to-cafe-secondary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
+            className="px-6 py-3 bg-gradient-to-r from-cafe-primary to-cafe-secondary text-neutral-800 rounded-lg font-semibold hover:opacity-90 transition-opacity"
           >
             Get Started
           </button>

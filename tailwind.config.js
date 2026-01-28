@@ -5,21 +5,21 @@ export default {
     extend: {
       colors: {
         cafe: {
-          accent: '#60A5FA', // Light blue
-          dark: '#01121F', // Dark background
-          cream: '#E0F2FE',
-          beige: '#BAE6FD',
-          latte: '#7DD3FC',
-          espresso: '#0EA5E9',
-          light: '#F0F9FF',
-          // In-game credits theme colors
-          primary: '#60A5FA', // Light blue primary
-          secondary: '#38BDF8', // Sky blue
-          darkBg: '#01121F', // Main background (navy blue)
-          darkCard: '#0A1F2E', // Card background
-          glass: 'rgba(255, 255, 255, 0.1)', // Glass effect
-          text: '#E0F2FE', // Light text
-          textMuted: '#94A3B8' // Muted text
+          accent: '#D4C4A8', // Cream accent
+          dark: '#0F0F0F', // Off-black
+          cream: '#F5F0E6',
+          beige: '#E8E0D0',
+          latte: '#D4C4A8',
+          espresso: '#B8A88A',
+          light: '#FAF7F2',
+          // Cream & off-black theme
+          primary: '#D4C4A8', // Cream primary
+          secondary: '#E8DCC4', // Lighter cream
+          darkBg: '#0F0F0F', // Off-black background
+          darkCard: '#1A1A1A', // Card background
+          glass: 'rgba(255, 255, 255, 0.06)', // Glass effect
+          text: '#FAF7F2', // Cream text
+          textMuted: '#A39E93' // Muted cream/gray
         }
       },
       fontFamily: {
