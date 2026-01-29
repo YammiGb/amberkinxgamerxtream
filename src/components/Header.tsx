@@ -29,7 +29,7 @@ const Header: React.FC<HeaderProps> = ({ cartItemsCount, onCartClick, onMenuClic
           >
             <img 
               src="/image.png" 
-              alt={siteSettings?.site_name || "AmberKin x GamerXtream"}
+              alt={siteSettings?.site_name || "AmberKin Top-Ups"}
               className="h-10 sm:h-12 md:h-16 w-auto object-contain"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
