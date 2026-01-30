@@ -229,7 +229,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowCustomization(false)}>
           <div className="flex flex-col rounded-2xl max-w-2xl w-full max-h-[90vh] shadow-2xl overflow-hidden bg-cafe-darkBg border border-cafe-primary/20" onClick={(e) => e.stopPropagation()}>
             <div 
-              className="flex-shrink-0 p-6 flex items-start justify-between rounded-t-2xl relative overflow-hidden" 
+              className="flex-shrink-0 p-6 rounded-t-2xl relative overflow-hidden" 
               style={{ 
                 backgroundImage: item.image ? `url(${item.image})` : 'none',
                 backgroundSize: 'cover',
@@ -260,24 +260,23 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 }}
               />
               
-              {/* Content with relative positioning to be above overlay */}
-              <div className="relative z-10 flex items-start justify-between w-full gap-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-bold text-white drop-shadow-lg">{item.name}</h3>
+              {/* Content uses full width; only minimal right padding so X doesn't overlap text */}
+              <div className="relative z-10 w-full max-w-full pr-12 min-w-0">
+                <h3 className="text-xl font-bold text-white drop-shadow-lg">{item.name}</h3>
                 {item.subtitle && (
-                    <p className="text-sm text-white/95 mt-1 drop-shadow-md">{item.subtitle}</p>
+                  <p className="text-sm text-white/95 mt-1 drop-shadow-md">{item.subtitle}</p>
                 )}
                 {item.description && (
-                    <p className="text-sm text-white/90 mt-2 drop-shadow-md whitespace-pre-line break-words">{item.description}</p>
+                  <p className="text-sm text-white/90 mt-2 drop-shadow-md whitespace-pre-line break-words max-w-full">{item.description}</p>
                 )}
               </div>
               <button
                 onClick={() => setShowCustomization(false)}
-                  className="p-2 hover:bg-white/20 rounded-full transition-colors duration-200 relative z-10 flex-shrink-0"
+                className="absolute top-4 right-4 z-20 p-1.5 hover:bg-white/20 rounded-full transition-colors duration-200 flex-shrink-0"
+                aria-label="Close"
               >
-                  <X className="h-5 w-5 text-white drop-shadow-lg" />
+                <X className="h-5 w-5 text-white drop-shadow-lg" />
               </button>
-              </div>
             </div>
 
             <div 
@@ -369,7 +368,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                                         {variation.name}
                                       </div>
                                       {variation.description && (
-                                        <div className="text-xs text-gray-600 mb-2 line-clamp-2">
+                                        <div className="text-xs text-gray-600 mb-2 whitespace-pre-line break-words">
                                           {variation.description}
                                         </div>
                                       )}
