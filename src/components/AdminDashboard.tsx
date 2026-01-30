@@ -386,9 +386,14 @@ const AdminDashboard: React.FC = () => {
   const updateCustomField = (index: number, field: keyof CustomField, value: string | boolean) => {
     const updatedFields = [...(formData.customFields || [])];
     updatedFields[index] = { ...updatedFields[index], [field]: value };
-    // Auto-generate key from label if key is empty
+    // Auto-generate unique key from label if key is empty (append index to avoid duplicates)
     if (field === 'label' && !updatedFields[index].key) {
-      updatedFields[index].key = value.toString().toLowerCase().replace(/\s+/g, '_');
+      const base = value.toString().toLowerCase().replace(/\s+/g, '_') || 'field';
+      const existingKeys = new Set(updatedFields.map((f, i) => i !== index ? (f.key || `f${i}`) : null).filter(Boolean));
+      let key = base;
+      let n = 0;
+      while (existingKeys.has(key)) key = `${base}_${++n}`;
+      updatedFields[index].key = key;
     }
     setFormData({ ...formData, customFields: updatedFields });
   };

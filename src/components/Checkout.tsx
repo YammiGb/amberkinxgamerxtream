@@ -1558,10 +1558,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                             <p className="text-sm text-cafe-textMuted">{variationName}</p>
                           </div>
                         </div>
-                        {firstItem.customFields.map((field) => {
+                        {firstItem.customFields.map((field, fieldIndex) => {
                           const valueKey = `${gameId}_${variationId}_${field.key}`;
                           return (
-                            <div key={field.key}>
+                            <div key={`${gameId}_${variationId}_field_${fieldIndex}`}>
                               <label className="block text-sm font-medium text-cafe-text mb-2">
                                 {field.label} {field.required && <span className="text-red-500">*</span>}
                               </label>
@@ -1608,11 +1608,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                           <p className="text-xs text-cafe-textMuted">Please provide the following information for this game</p>
                         </div>
                       </div>
-                      {item.customFields?.map((field) => {
+                      {item.customFields?.map((field, fieldIndex) => {
                         const originalId = getOriginalMenuItemId(item.id);
                         const valueKey = `${originalId}_${field.key}`;
                         return (
-                          <div key={valueKey}>
+                          <div key={`${originalId}_field_${fieldIndex}`}>
                             <label className="block text-sm font-medium text-cafe-text mb-2">
                               {field.label} {field.required && <span className="text-red-500">*</span>}
                             </label>
