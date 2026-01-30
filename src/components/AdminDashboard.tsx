@@ -850,7 +850,7 @@ const AdminDashboard: React.FC = () => {
                         const newVariation: Variation = {
                           id: `var-${Date.now()}-${Math.random()}`,
                           name: '',
-                          price: undefined,
+                          price: 0,
                           description: '',
                           sort_order: 0,
                           category: categoryName,
@@ -1025,7 +1025,7 @@ const AdminDashboard: React.FC = () => {
                                         const categoryVariationIds = new Set(categoryVariations.map(v => v.id));
                                         const updatedVariations = formData.variations!.map(v => {
                                           if (categoryVariationIds.has(v.id)) {
-                                            return { ...v, sort: value !== 999 ? value : null };
+                                            return { ...v, sort: value !== 999 ? value : undefined };
                                           }
                                           return v;
                                         });
@@ -1166,7 +1166,7 @@ const AdminDashboard: React.FC = () => {
                                       const newVariation: Variation = {
                                         id: `var-${Date.now()}-${Math.random()}`,
                                         name: '',
-                                        price: undefined,
+                                        price: 0,
                                         member_price: undefined,
                                         reseller_price: undefined,
                                         credits_amount: undefined,
@@ -1327,12 +1327,12 @@ const AdminDashboard: React.FC = () => {
                       if (categoryToDelete === '__unnamed_category__') {
                         // Deleting unnamed category - move to unnamed (no change needed, but handle edge case)
                         if (!vCategory || vCategory.trim() === '' || vCategory === '__unnamed_category__') {
-                          return { ...v, category: undefined, sort: null };
+                          return { ...v, category: undefined, sort: undefined };
                         }
                       } else if (vCategory === categoryToDelete || 
                                  (categoryToDelete.startsWith('__temp_empty_') && vCategory === categoryToDelete)) {
                         // Move to "Unnamed Category" by setting category to undefined
-                        return { ...v, category: undefined, sort: null };
+                        return { ...v, category: undefined, sort: undefined };
                       }
                       return v;
                     });

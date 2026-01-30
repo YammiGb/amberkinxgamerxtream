@@ -31,6 +31,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const paymentDetailsRef = useRef<HTMLDivElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
+  /** On iOS, window.open must run in the same user gesture; we use the last copied message so we can open without awaiting. */
+  const lastCopiedOrderMessageRef = useRef<string | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>(() => {
     try {
@@ -863,6 +865,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
         document.body.removeChild(textarea);
         
         if (successful) {
+          lastCopiedOrderMessageRef.current = message;
           setCopied(true);
           setHasCopiedMessage(true);
           setTimeout(() => setCopied(false), 2000);
@@ -878,6 +881,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           // Fallback: try clipboard API (may not work on older iOS/Mac)
           try {
             await navigator.clipboard.writeText(message);
+            lastCopiedOrderMessageRef.current = message;
             setCopied(true);
             setHasCopiedMessage(true);
             setTimeout(() => setCopied(false), 2000);
@@ -895,6 +899,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       } else {
         // For non-iOS/Mac, use async approach
         message = await generateOrderMessage(true);
+        lastCopiedOrderMessageRef.current = message;
         
         try {
           await navigator.clipboard.writeText(message);
@@ -1357,6 +1362,21 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const handlePlaceOrder = async () => {
     if (!paymentMethod) {
       setReceiptError('Please select a payment method');
+      return;
+    }
+
+    // On iOS, window.open() must run synchronously in the user gesture or the pre-filled
+    // message is often dropped. Use the last copied message and open immediately (no await).
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const cachedMessage = lastCopiedOrderMessageRef.current;
+
+    if (isIOS && cachedMessage) {
+      const encodedMessage = encodeURIComponent(cachedMessage);
+      const messengerUrl = `https://m.me/AmberKinGamerXtream?text=${encodedMessage}`;
+      window.open(messengerUrl, '_blank');
+      // Save order in background (don't block; user already left to Messenger)
+      saveOrderToDb().catch(console.error);
       return;
     }
 
