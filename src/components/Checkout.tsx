@@ -33,6 +33,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const buttonsRef = useRef<HTMLDivElement>(null);
   /** On iOS, window.open must run in the same user gesture; we use the last copied message so we can open without awaiting. */
   const lastCopiedOrderMessageRef = useRef<string | null>(null);
+  /** Current invoice count from DB (or last used); used so optimistic invoice number uses real count, not always 1. */
+  const currentInvoiceCountRef = useRef<{ count: number; date: string } | null>(null);
   const [showScrollIndicator, setShowScrollIndicator] = useState(true);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>(() => {
     try {
@@ -164,6 +166,18 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const [generatedInvoiceNumber, setGeneratedInvoiceNumber] = useState<string | null>(null);
   const [invoiceNumberDate, setInvoiceNumberDate] = useState<string | null>(null);
   const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false);
+
+  // Load current invoice count from DB on mount so optimistic number (iOS/Mac) uses real count
+  React.useEffect(() => {
+    const load = async () => {
+      const { data: countData } = await supabase.from('site_settings').select('value').eq('id', 'invoice_count').maybeSingle();
+      const { data: dateData } = await supabase.from('site_settings').select('value').eq('id', 'invoice_count_date').maybeSingle();
+      const lastDate = dateData?.value || '';
+      const count = countData?.value ? parseInt(countData.value, 10) : 0;
+      currentInvoiceCountRef.current = { count: isNaN(count) ? 0 : count, date: lastDate };
+    };
+    load();
+  }, []);
 
   // Extract original menu item ID from cart item ID (format: "menuItemId:::CART:::timestamp-random")
   // This allows us to group all packages from the same game together
@@ -540,12 +554,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
 
       // Format: 1M{day}D{orderNumber}
       // Example: AKGXT1M17D1 (1st order on day 17), AKGXT1M17D2 (2nd order on day 17), etc.
-      // The first number is always 1, the last number is the order number
       const invoiceNumber = `AKGXT1M${dayOfMonth}D${orderNumber}`;
       
-      // Store the generated invoice number and date
       setGeneratedInvoiceNumber(invoiceNumber);
       setInvoiceNumberDate(todayStr);
+      currentInvoiceCountRef.current = { count: orderNumber, date: todayStr };
       
       return invoiceNumber;
     } catch (error) {
@@ -554,6 +567,19 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       const { dayOfMonth } = getPhilippineDate();
       return `1M${dayOfMonth}D1`;
     }
+  };
+
+  /** Convert label text to Unicode Mathematical Bold for plain-text message (Messenger/copy). */
+  const toBold = (s: string): string => {
+    let r = '';
+    for (let i = 0; i < s.length; i++) {
+      const c = s.charCodeAt(i);
+      if (c >= 65 && c <= 90) r += String.fromCodePoint(0x1D400 + c - 65);       // A-Z
+      else if (c >= 97 && c <= 122) r += String.fromCodePoint(0x1D41A + c - 97); // a-z
+      else if (c >= 48 && c <= 57) r += String.fromCodePoint(0x1D7CE + c - 48);  // 0-9
+      else r += s[i];
+    }
+    return r;
   };
 
   // Generate the order message text
@@ -567,7 +593,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     const lines: string[] = [];
     
     // Invoice number
-    lines.push(`INVOICE # ${invoiceNumber}`);
+    lines.push(`${toBold('INVOICE')} # ${invoiceNumber}`);
     lines.push(''); // Break after invoice
     
     // Handle multiple accounts mode
@@ -595,28 +621,28 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       
       // Build message for each game (game name mentioned once)
       gameGroups.forEach((variations, gameName) => {
-        lines.push(`GAME: ${gameName}`);
+        lines.push(`${toBold('GAME')}: ${gameName}`);
         
         variations.forEach(({ variationName, items, fields }) => {
           // ID & SERVER or other fields
           if (fields.length === 1) {
-            lines.push(`${fields[0].label}: ${fields[0].value}`);
+            lines.push(`${toBold(fields[0].label)}: ${fields[0].value}`);
           } else if (fields.length > 1) {
             // Combine fields with & if multiple
             const allValuesSame = fields.every(f => f.value === fields[0].value);
             if (allValuesSame) {
               const labels = fields.map(f => f.label);
               if (labels.length === 2) {
-                lines.push(`${labels[0]} & ${labels[1]}: ${fields[0].value}`);
+                lines.push(`${toBold(labels[0])} & ${toBold(labels[1])}: ${fields[0].value}`);
               } else {
-                const allButLast = labels.slice(0, -1).join(', ');
-                const lastLabel = labels[labels.length - 1];
+                const allButLast = labels.slice(0, -1).map(l => toBold(l)).join(', ');
+                const lastLabel = toBold(labels[labels.length - 1]);
                 lines.push(`${allButLast} & ${lastLabel}: ${fields[0].value}`);
               }
             } else {
               // Different values, show each field separately
               fields.forEach(field => {
-                lines.push(`${field.label}: ${field.value}`);
+                lines.push(`${toBold(field.label)}: ${field.value}`);
               });
             }
           }
@@ -627,7 +653,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             const addOnsText = item.selectedAddOns && item.selectedAddOns.length > 0
               ? ` + ${item.selectedAddOns.map(a => a.name).join(', ')}`
               : '';
-            lines.push(`ORDER: ${item.name}${variationText}${addOnsText} x${item.quantity} - ₱${item.totalPrice * item.quantity}`);
+            lines.push(`${toBold('ORDER')}: ${item.name}${variationText}${addOnsText} x${item.quantity} - ₱${item.totalPrice * item.quantity}`);
           });
         });
       });
@@ -676,11 +702,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       // Build sections for each group
       gamesByFieldValues.forEach(({ games, items, fields }) => {
         // Game name (only once if multiple games share same fields)
-        lines.push(`GAME: ${games.join(', ')}`);
+        lines.push(`${toBold('GAME')}: ${games.join(', ')}`);
         
         // ID & SERVER or other fields
         if (fields.length === 1) {
-          lines.push(`${fields[0].label}: ${fields[0].value}`);
+          lines.push(`${toBold(fields[0].label)}: ${fields[0].value}`);
         } else if (fields.length > 1) {
           // Combine fields with & if multiple
           const allValuesSame = fields.every(f => f.value === fields[0].value);
@@ -688,22 +714,22 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             // All values same, combine labels with &
             const labels = fields.map(f => f.label);
             if (labels.length === 2) {
-              lines.push(`${labels[0]} & ${labels[1]}: ${fields[0].value}`);
+              lines.push(`${toBold(labels[0])} & ${toBold(labels[1])}: ${fields[0].value}`);
             } else {
-              const allButLast = labels.slice(0, -1).join(', ');
-              const lastLabel = labels[labels.length - 1];
+              const allButLast = labels.slice(0, -1).map(l => toBold(l)).join(', ');
+              const lastLabel = toBold(labels[labels.length - 1]);
               lines.push(`${allButLast} & ${lastLabel}: ${fields[0].value}`);
             }
           } else {
             // Different values, show each field separately
-            const fieldPairs = fields.map(f => `${f.label}: ${f.value}`);
+            const fieldPairs = fields.map(f => `${toBold(f.label)}: ${f.value}`);
             lines.push(fieldPairs.join(', '));
           }
         }
         
         // Order items
         items.forEach(item => {
-          let orderLine = `ORDER: ${item.selectedVariation?.name || item.name}`;
+          let orderLine = `${toBold('ORDER')}: ${item.selectedVariation?.name || item.name}`;
           if (item.quantity > 1) {
             orderLine += ` x${item.quantity}`;
           }
@@ -715,10 +741,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       // Handle items without custom fields
       if (itemsWithoutFields.length > 0) {
         const uniqueGames = [...new Set(itemsWithoutFields.map(item => item.name))];
-        lines.push(`GAME: ${uniqueGames.join(', ')}`);
+        lines.push(`${toBold('GAME')}: ${uniqueGames.join(', ')}`);
         
         itemsWithoutFields.forEach(item => {
-          let orderLine = `ORDER: ${item.selectedVariation?.name || item.name}`;
+          let orderLine = `${toBold('ORDER')}: ${item.selectedVariation?.name || item.name}`;
           if (item.quantity > 1) {
             orderLine += ` x${item.quantity}`;
           }
@@ -729,17 +755,17 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     } else {
       // No custom fields, single account mode
       const uniqueGames = [...new Set(cartItems.map(item => item.name))];
-      lines.push(`GAME: ${uniqueGames.join(', ')}`);
+      lines.push(`${toBold('GAME')}: ${uniqueGames.join(', ')}`);
       
       // Default IGN field
       const ign = customFieldValues['default_ign'] || '';
       if (ign) {
-        lines.push(`IGN: ${ign}`);
+        lines.push(`${toBold('IGN')}: ${ign}`);
       }
       
       // Order items
       cartItems.forEach(item => {
-        let orderLine = `ORDER: ${item.selectedVariation?.name || item.name}`;
+        let orderLine = `${toBold('ORDER')}: ${item.selectedVariation?.name || item.name}`;
         if (item.quantity > 1) {
           orderLine += ` x${item.quantity}`;
         }
@@ -749,11 +775,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     }
     
     // Payment
-    const paymentLine = `PAYMENT: ${selectedPaymentMethod?.name || ''}${selectedPaymentMethod?.account_name ? ` - ${selectedPaymentMethod.account_name}` : ''}`;
+    const paymentLine = `${toBold('PAYMENT')}: ${selectedPaymentMethod?.name || ''}${selectedPaymentMethod?.account_name ? ` - ${selectedPaymentMethod.account_name}` : ''}`;
     lines.push(paymentLine);
     
     // Total
-    lines.push(`TOTAL: ₱${totalPrice}`);
+    lines.push(`${toBold('TOTAL')}: ₱${totalPrice}`);
     
     return lines.join('\n');
   };
@@ -815,21 +841,19 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       
       if (needsSyncCopy) {
         // On iOS/Mac, we MUST copy synchronously within the user gesture
-        // Use existing state first, then calculate optimistically, copy immediately
+        // Use current count from DB (loaded on mount) or state so invoice number increments correctly
         const { dateString: todayStr, dayOfMonth } = getPhilippineDate();
         
-        // Calculate optimistic invoice number synchronously
         let optimisticCount = 1;
-        if (generatedInvoiceNumber && invoiceNumberDate === todayStr) {
-          // We have an existing invoice number for today - increment it
+        const ref = currentInvoiceCountRef.current;
+        if (ref && ref.date === todayStr) {
+          // Use DB-backed count so we get D88, not stuck at D1
+          optimisticCount = ref.count + 1;
+        } else if (generatedInvoiceNumber && invoiceNumberDate === todayStr) {
           const match = generatedInvoiceNumber.match(/AKGXT1M\d+D(\d+)/);
-          if (match) {
-            optimisticCount = parseInt(match[1], 10) + 1;
-          }
-        } else {
-          // No existing number or different day - start at 1
-          optimisticCount = 1;
+          if (match) optimisticCount = parseInt(match[1], 10) + 1;
         }
+        currentInvoiceCountRef.current = { count: optimisticCount, date: todayStr };
         
         const optimisticInvoiceNumber = `AKGXT1M${dayOfMonth}D${optimisticCount}`;
         
@@ -873,9 +897,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           // Update database in background (async, doesn't block)
           // This ensures the count is properly saved for the next order
           generateInvoiceNumber(true).then((actualInvoiceNumber) => {
-            // Update state with actual invoice number
             setGeneratedInvoiceNumber(actualInvoiceNumber);
             setInvoiceNumberDate(todayStr);
+            const m = actualInvoiceNumber.match(/AKGXT1M\d+D(\d+)/);
+            if (m) currentInvoiceCountRef.current = { count: parseInt(m[1], 10), date: todayStr };
           }).catch(console.error);
         } else {
           // Fallback: try clipboard API (may not work on older iOS/Mac)
@@ -890,6 +915,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             generateInvoiceNumber(true).then((actualInvoiceNumber) => {
               setGeneratedInvoiceNumber(actualInvoiceNumber);
               setInvoiceNumberDate(todayStr);
+              const m = actualInvoiceNumber.match(/AKGXT1M\d+D(\d+)/);
+              if (m) currentInvoiceCountRef.current = { count: parseInt(m[1], 10), date: todayStr };
             }).catch(console.error);
           } catch (clipboardError) {
             console.error('Failed to copy message on iOS/Mac:', clipboardError);
@@ -940,7 +967,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     const lines: string[] = [];
     
     // Invoice number
-    lines.push(`INVOICE # ${invoiceNumber}`);
+    lines.push(`${toBold('INVOICE')} # ${invoiceNumber}`);
     lines.push(''); // Break after invoice
     
     // Handle multiple accounts mode
@@ -968,28 +995,28 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       
       // Build message for each game (game name mentioned once)
       gameGroups.forEach((variations, gameName) => {
-        lines.push(`GAME: ${gameName}`);
+        lines.push(`${toBold('GAME')}: ${gameName}`);
         
         variations.forEach(({ variationName, items, fields }) => {
           // ID & SERVER or other fields
           if (fields.length === 1) {
-            lines.push(`${fields[0].label}: ${fields[0].value}`);
+            lines.push(`${toBold(fields[0].label)}: ${fields[0].value}`);
           } else if (fields.length > 1) {
             // Combine fields with & if multiple
             const allValuesSame = fields.every(f => f.value === fields[0].value);
             if (allValuesSame) {
               const labels = fields.map(f => f.label);
               if (labels.length === 2) {
-                lines.push(`${labels[0]} & ${labels[1]}: ${fields[0].value}`);
+                lines.push(`${toBold(labels[0])} & ${toBold(labels[1])}: ${fields[0].value}`);
               } else {
-                const allButLast = labels.slice(0, -1).join(', ');
-                const lastLabel = labels[labels.length - 1];
+                const allButLast = labels.slice(0, -1).map(l => toBold(l)).join(', ');
+                const lastLabel = toBold(labels[labels.length - 1]);
                 lines.push(`${allButLast} & ${lastLabel}: ${fields[0].value}`);
               }
             } else {
               // Different values, show each field separately
               fields.forEach(field => {
-                lines.push(`${field.label}: ${field.value}`);
+                lines.push(`${toBold(field.label)}: ${field.value}`);
               });
             }
           }
@@ -1000,7 +1027,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             const addOnsText = item.selectedAddOns && item.selectedAddOns.length > 0
               ? ` + ${item.selectedAddOns.map(a => a.name).join(', ')}`
               : '';
-            lines.push(`ORDER: ${item.name}${variationText}${addOnsText} x${item.quantity} - ₱${item.totalPrice * item.quantity}`);
+            lines.push(`${toBold('ORDER')}: ${item.name}${variationText}${addOnsText} x${item.quantity} - ₱${item.totalPrice * item.quantity}`);
           });
         });
       });
@@ -1049,11 +1076,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       // Build sections for each group
       gamesByFieldValues.forEach(({ games, items, fields }) => {
         // Game name (only once if multiple games share same fields)
-        lines.push(`GAME: ${games.join(', ')}`);
+        lines.push(`${toBold('GAME')}: ${games.join(', ')}`);
         
         // ID & SERVER or other fields
         if (fields.length === 1) {
-          lines.push(`${fields[0].label}: ${fields[0].value}`);
+          lines.push(`${toBold(fields[0].label)}: ${fields[0].value}`);
         } else if (fields.length > 1) {
           // Combine fields with & if multiple
           const allValuesSame = fields.every(f => f.value === fields[0].value);
@@ -1061,22 +1088,22 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             // All values same, combine labels with &
             const labels = fields.map(f => f.label);
             if (labels.length === 2) {
-              lines.push(`${labels[0]} & ${labels[1]}: ${fields[0].value}`);
+              lines.push(`${toBold(labels[0])} & ${toBold(labels[1])}: ${fields[0].value}`);
             } else {
-              const allButLast = labels.slice(0, -1).join(', ');
-              const lastLabel = labels[labels.length - 1];
+              const allButLast = labels.slice(0, -1).map(l => toBold(l)).join(', ');
+              const lastLabel = toBold(labels[labels.length - 1]);
               lines.push(`${allButLast} & ${lastLabel}: ${fields[0].value}`);
             }
           } else {
             // Different values, show each field separately
-            const fieldPairs = fields.map(f => `${f.label}: ${f.value}`);
+            const fieldPairs = fields.map(f => `${toBold(f.label)}: ${f.value}`);
             lines.push(fieldPairs.join(', '));
           }
         }
         
         // Order items
         items.forEach(item => {
-          let orderLine = `ORDER: ${item.selectedVariation?.name || item.name}`;
+          let orderLine = `${toBold('ORDER')}: ${item.selectedVariation?.name || item.name}`;
           if (item.quantity > 1) {
             orderLine += ` x${item.quantity}`;
           }
@@ -1088,10 +1115,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       // Handle items without custom fields
       if (itemsWithoutFields.length > 0) {
         const uniqueGames = [...new Set(itemsWithoutFields.map(item => item.name))];
-        lines.push(`GAME: ${uniqueGames.join(', ')}`);
+        lines.push(`${toBold('GAME')}: ${uniqueGames.join(', ')}`);
         
         itemsWithoutFields.forEach(item => {
-          let orderLine = `ORDER: ${item.selectedVariation?.name || item.name}`;
+          let orderLine = `${toBold('ORDER')}: ${item.selectedVariation?.name || item.name}`;
           if (item.quantity > 1) {
             orderLine += ` x${item.quantity}`;
           }
@@ -1102,17 +1129,17 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     } else {
       // No custom fields, single account mode
       const uniqueGames = [...new Set(cartItems.map(item => item.name))];
-      lines.push(`GAME: ${uniqueGames.join(', ')}`);
+      lines.push(`${toBold('GAME')}: ${uniqueGames.join(', ')}`);
       
       // Default IGN field
       const ign = customFieldValues['default_ign'] || '';
       if (ign) {
-        lines.push(`IGN: ${ign}`);
+        lines.push(`${toBold('IGN')}: ${ign}`);
       }
       
       // Order items
       cartItems.forEach(item => {
-        let orderLine = `ORDER: ${item.selectedVariation?.name || item.name}`;
+        let orderLine = `${toBold('ORDER')}: ${item.selectedVariation?.name || item.name}`;
         if (item.quantity > 1) {
           orderLine += ` x${item.quantity}`;
         }
@@ -1122,11 +1149,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     }
     
     // Payment
-    const paymentLine = `PAYMENT: ${selectedPaymentMethod?.name || ''}${selectedPaymentMethod?.account_name ? ` - ${selectedPaymentMethod.account_name}` : ''}`;
+    const paymentLine = `${toBold('PAYMENT')}: ${selectedPaymentMethod?.name || ''}${selectedPaymentMethod?.account_name ? ` - ${selectedPaymentMethod.account_name}` : ''}`;
     lines.push(paymentLine);
     
     // Total
-    lines.push(`TOTAL: ₱${totalPrice}`);
+    lines.push(`${toBold('TOTAL')}: ₱${totalPrice}`);
     
     return lines.join('\n');
   };
