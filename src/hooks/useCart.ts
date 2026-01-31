@@ -1,7 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
 import { CartItem, MenuItem, Variation, AddOn } from '../types';
+import { useMemberAuth } from './useMemberAuth';
 
 export const useCart = () => {
+  const { currentMember } = useMemberAuth();
   // Load cart items from localStorage on mount
   const [cartItems, setCartItems] = useState<CartItem[]>(() => {
     try {
@@ -16,6 +18,32 @@ export const useCart = () => {
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
 
+  const calculateItemPrice = useCallback((item: MenuItem, variation?: Variation, addOns?: AddOn[]) => {
+    let price = 0;
+    
+    if (variation) {
+      // Use member_price or reseller_price if user is logged in
+      const isReseller = currentMember?.user_type === 'reseller';
+      if (isReseller && currentMember && variation.reseller_price !== undefined) {
+        price = variation.reseller_price;
+      } else if (currentMember && !isReseller && currentMember.user_type === 'end_user' && variation.member_price !== undefined) {
+        price = variation.member_price;
+      } else {
+        price = variation.price;
+      }
+    } else {
+      // Fallback to basePrice if no variation (for backward compatibility)
+      price = item.basePrice;
+    }
+    
+    if (addOns) {
+      addOns.forEach(addOn => {
+        price += addOn.price;
+      });
+    }
+    return price;
+  }, [currentMember]);
+
   // Save cart items to localStorage whenever they change
   useEffect(() => {
     try {
@@ -25,18 +53,13 @@ export const useCart = () => {
     }
   }, [cartItems]);
 
-  const calculateItemPrice = (item: MenuItem, variation?: Variation, addOns?: AddOn[]) => {
-    let price = item.basePrice;
-    if (variation) {
-      price += variation.price;
-    }
-    if (addOns) {
-      addOns.forEach(addOn => {
-        price += addOn.price;
-      });
-    }
-    return price;
-  };
+  // Recalculate cart item prices when member status changes (login/logout)
+  useEffect(() => {
+    setCartItems(prev => prev.map(item => ({
+      ...item,
+      totalPrice: calculateItemPrice(item, item.selectedVariation, item.selectedAddOns)
+    })));
+  }, [currentMember?.id, currentMember?.user_type, calculateItemPrice]);
 
   const addToCart = useCallback((item: MenuItem, quantity: number = 1, variation?: Variation, addOns?: AddOn[]) => {
     const totalPrice = calculateItemPrice(item, variation, addOns);
