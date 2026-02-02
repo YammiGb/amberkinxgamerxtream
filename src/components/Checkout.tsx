@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { ArrowLeft, Upload, X, Copy, Check, MousePointerClick, Download } from 'lucide-react';
+import { ArrowLeft, Upload, Copy, Check, MousePointerClick, Download } from 'lucide-react';
 import { CartItem, CustomField } from '../types';
 import { usePaymentMethods, PaymentMethod } from '../hooks/usePaymentMethods';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -165,7 +165,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [generatedInvoiceNumber, setGeneratedInvoiceNumber] = useState<string | null>(null);
   const [invoiceNumberDate, setInvoiceNumberDate] = useState<string | null>(null);
-  const [showPaymentDetailsModal, setShowPaymentDetailsModal] = useState(false);
 
   // Load current invoice count from DB on mount so optimistic number (iOS/Mac) uses real count
   React.useEffect(() => {
@@ -348,10 +347,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Show payment details modal when payment method is selected
+  // Scroll to payment details when payment method is selected
   React.useEffect(() => {
-    if (paymentMethod) {
-      setShowPaymentDetailsModal(true);
+    if (paymentMethod && paymentDetailsRef.current) {
+      setTimeout(() => {
+        paymentDetailsRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start'
+        });
+      }, 100);
     }
   }, [paymentMethod]);
 
@@ -1737,7 +1741,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 type="button"
                 onClick={() => {
                   setPaymentMethod(method);
-                  setShowPaymentDetailsModal(true);
                 }}
                 className={`rounded-lg border-2 transition-all duration-200 flex flex-col overflow-hidden ${
                   paymentMethod?.id === method.id
@@ -1763,6 +1766,104 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
               </button>
             ))}
           </div>
+
+          {/* Payment Details Section - shown when payment method is selected */}
+          {selectedPaymentMethod && (
+            <div ref={paymentDetailsRef} className="glass-card rounded-xl p-4 mb-4">
+              <h3 className="text-lg font-semibold text-cafe-text mb-4">Payment Details</h3>
+
+              <p className="text-xs text-cafe-textMuted mb-4">
+                Press the copy button to copy the number or download the QR code, then make your payment and proceed to messenger.
+              </p>
+
+              <div className="space-y-4">
+                {/* Payment Method Name and Amount */}
+                <div className="flex items-center justify-between">
+                  <p className="text-lg font-semibold text-cafe-text">{selectedPaymentMethod.name}</p>
+                  <p className="text-xl font-semibold text-white">₱{totalPrice}</p>
+                </div>
+                
+                {/* Account Number and Account Name in one row */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Account Number with Copy Button */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm text-cafe-textMuted">Number:</p>
+                      <button
+                        onClick={() => handleCopyAccountNumber(selectedPaymentMethod.account_number)}
+                        className="p-1.5 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200 flex-shrink-0"
+                        title="Copy account number"
+                      >
+                        {copiedAccountNumber ? (
+                          <Check className="h-3.5 w-3.5 text-green-400" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-cafe-text" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="font-mono text-cafe-text font-medium text-sm">{selectedPaymentMethod.account_number}</p>
+                  </div>
+                  
+                  {/* Account Name with Copy Button */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-sm text-cafe-textMuted">Name:</p>
+                      <button
+                        onClick={() => handleCopyAccountName(selectedPaymentMethod.account_name)}
+                        className="p-1.5 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200 flex-shrink-0"
+                        title="Copy account name"
+                      >
+                        {copiedAccountName ? (
+                          <Check className="h-3.5 w-3.5 text-green-400" />
+                        ) : (
+                          <Copy className="h-3.5 w-3.5 text-cafe-text" />
+                        )}
+                      </button>
+                    </div>
+                    <p className="text-cafe-text font-medium text-sm">{selectedPaymentMethod.account_name}</p>
+                  </div>
+                </div>
+                
+                {/* Other Option */}
+                <div>
+                  <h3 className="font-medium text-cafe-text text-center">Other Option</h3>
+                </div>
+                
+                {/* Download QR Button and QR Image */}
+                {selectedPaymentMethod.qr_code_url ? (
+                <div className="flex flex-col items-center gap-3">
+                  {!isMessengerBrowser && (
+                    <button
+                      onClick={() => handleDownloadQRCode(selectedPaymentMethod.qr_code_url, selectedPaymentMethod.name)}
+                      className="px-3 py-1.5 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200 text-sm font-medium text-cafe-text flex items-center gap-2"
+                      title="Download QR code"
+                    >
+                      <Download className="h-4 w-4" />
+                      <span>Download QR</span>
+                    </button>
+                  )}
+                  {isMessengerBrowser && (
+                    <p className="text-xs text-cafe-textMuted text-center">Long-press the QR code to save</p>
+                  )}
+                  <img 
+                    src={selectedPaymentMethod.qr_code_url} 
+                    alt={`${selectedPaymentMethod.name} QR Code`}
+                    className="w-32 h-32 rounded-lg border-2 border-cafe-primary/30 shadow-sm"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://images.pexels.com/photos/8867482/pexels-photo-8867482.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop';
+                    }}
+                  />
+                </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-32 h-32 rounded-lg border-2 border-cafe-primary/30 shadow-sm bg-cafe-darkCard flex items-center justify-center">
+                      <p className="text-xs text-cafe-textMuted text-center">No QR Code Available</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Payment instruction - styled as required reading */}
           <div className="rounded-xl border-l-2 border-cafe-primary border border-cafe-primary/20 bg-cafe-primary/10 p-3">
@@ -1867,114 +1968,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           )}
         </div>
       </div>
-
-      {/* Payment Details Modal */}
-      {showPaymentDetailsModal && selectedPaymentMethod && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="glass-card rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-2xl font-semibold text-cafe-text">Payment Details</h3>
-              <button
-                onClick={() => setShowPaymentDetailsModal(false)}
-                className="p-2 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200"
-              >
-                <X className="h-5 w-5 text-cafe-text" />
-              </button>
-            </div>
-
-            <p className="text-xs text-cafe-textMuted mb-6">
-              Press the copy button to copy the number or download the QR code, then make your payment and proceed to messenger.
-            </p>
-
-            <div className="space-y-4">
-              {/* Payment Method Name and Amount */}
-              <div className="flex items-center justify-between">
-                <p className="text-lg font-semibold text-cafe-text">{selectedPaymentMethod.name}</p>
-                <p className="text-xl font-semibold text-white">₱{totalPrice}</p>
-              </div>
-              
-              {/* Account Number and Account Name in one row */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Account Number with Copy Button */}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm text-cafe-textMuted">Number:</p>
-                    <button
-                      onClick={() => handleCopyAccountNumber(selectedPaymentMethod.account_number)}
-                      className="p-1.5 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200 flex-shrink-0"
-                      title="Copy account number"
-                    >
-                      {copiedAccountNumber ? (
-                        <Check className="h-3.5 w-3.5 text-green-400" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5 text-cafe-text" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="font-mono text-cafe-text font-medium text-sm">{selectedPaymentMethod.account_number}</p>
-                </div>
-                
-                {/* Account Name with Copy Button */}
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm text-cafe-textMuted">Name:</p>
-                    <button
-                      onClick={() => handleCopyAccountName(selectedPaymentMethod.account_name)}
-                      className="p-1.5 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200 flex-shrink-0"
-                      title="Copy account name"
-                    >
-                      {copiedAccountName ? (
-                        <Check className="h-3.5 w-3.5 text-green-400" />
-                      ) : (
-                        <Copy className="h-3.5 w-3.5 text-cafe-text" />
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-cafe-text font-medium text-sm">{selectedPaymentMethod.account_name}</p>
-                </div>
-              </div>
-              
-              {/* Other Option */}
-              <div>
-                <h3 className="font-medium text-cafe-text text-center">Other Option</h3>
-              </div>
-              
-              {/* Download QR Button and QR Image */}
-              {selectedPaymentMethod.qr_code_url ? (
-              <div className="flex flex-col items-center gap-3">
-                {!isMessengerBrowser && (
-                  <button
-                    onClick={() => handleDownloadQRCode(selectedPaymentMethod.qr_code_url, selectedPaymentMethod.name)}
-                    className="px-3 py-1.5 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200 text-sm font-medium text-cafe-text flex items-center gap-2"
-                    title="Download QR code"
-                  >
-                    <Download className="h-4 w-4" />
-                    <span>Download QR</span>
-                  </button>
-                )}
-                {isMessengerBrowser && (
-                  <p className="text-xs text-cafe-textMuted text-center">Long-press the QR code to save</p>
-                )}
-                <img 
-                  src={selectedPaymentMethod.qr_code_url} 
-                  alt={`${selectedPaymentMethod.name} QR Code`}
-                  className="w-32 h-32 rounded-lg border-2 border-cafe-primary/30 shadow-sm"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://images.pexels.com/photos/8867482/pexels-photo-8867482.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop';
-                  }}
-                />
-              </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-32 h-32 rounded-lg border-2 border-cafe-primary/30 shadow-sm bg-cafe-darkCard flex items-center justify-center">
-                    <p className="text-xs text-cafe-textMuted text-center">No QR Code Available</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Order Status Modal */}
       <OrderStatusModal
