@@ -456,7 +456,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   // Example: 1M17D1 = 1st order on the 17th day of the month
   //          1M17D2 = 2nd order on the 17th day of the month
   // Resets daily at 12:00 AM Philippine time (Asia/Manila, UTC+8)
-  // The invoice number increments each time "Copy Order Message" is clicked (forceNew = true)
+  // The invoice number increments each time "Copy Invoice Order" is clicked (forceNew = true)
   // Subsequent calls (like "Order via Messenger") will reuse the same invoice number (forceNew = false)
   // Uses database (site_settings) to track invoice count with proper locking to prevent race conditions
   const generateInvoiceNumber = async (forceNew: boolean = false): Promise<string> => {
@@ -589,7 +589,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   // Generate the order message text
   const generateOrderMessage = async (forceNewInvoice: boolean = false): Promise<string> => {
     // Generate invoice number first
-    // forceNewInvoice is true when "Copy Order Message" is clicked to generate a new number
+    // forceNewInvoice is true when "Copy Invoice Order" is clicked to generate a new number
     // forceNewInvoice is false when "Order via Messenger" is clicked to reuse existing number
     const invoiceNumber = await generateInvoiceNumber(forceNewInvoice);
     
@@ -1912,7 +1912,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 ) : (
                   <>
                     <Copy className="h-5 w-5" />
-                    <span>Copy Order Message</span>
+                    <span>Copy Invoice Order</span>
                   </>
                 )}
               </button>
