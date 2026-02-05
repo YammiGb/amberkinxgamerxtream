@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { MenuItem, Variation } from '../types';
 import { useMemberAuth } from '../hooks/useMemberAuth';
 import { useMemberDiscounts } from '../hooks/useMemberDiscounts';
@@ -29,6 +29,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const { getDiscountForItem } = useMemberDiscounts();
   const [memberDiscounts, setMemberDiscounts] = useState<Record<string, number>>({});
   const [priceUpdateKey, setPriceUpdateKey] = useState(0); // Force re-render when member changes
+  const [tappedVariationId, setTappedVariationId] = useState<string | null>(null);
 
   // Force price update when member changes (login/logout)
   useEffect(() => {
@@ -118,6 +119,15 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     if (onItemAdded) {
       onItemAdded();
     }
+  };
+
+  // Show check icon briefly after tap, then add to cart (works on mobile and desktop)
+  const handlePackageTap = (variation: Variation) => {
+    setTappedVariationId(variation.id);
+    setTimeout(() => {
+      handleItemSelect(variation);
+      setTappedVariationId(null);
+    }, 400);
   };
 
   // Check if text overflows and needs scrolling
@@ -357,12 +367,16 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                                 return (
                                   <button
                                     key={variation.id}
-                                    onClick={() => handleItemSelect(variation)}
+                                    onClick={() => handlePackageTap(variation)}
                                     className="bg-white rounded-lg p-3 text-left group shadow-md relative overflow-hidden package-card-hover"
                                     style={{
                                       boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
                                     }}
                                   >
+                                    {/* Check icon: visible on hover (desktop) and after tap (mobile) */}
+                                    <div className={`absolute top-2 right-2 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center transition-opacity ${tappedVariationId === variation.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                      <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
+                                    </div>
                                     <div className="flex flex-col">
                                       <div className="font-semibold text-gray-900 text-sm mb-1">
                                         {variation.name}
