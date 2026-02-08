@@ -444,23 +444,25 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     const philippineTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     // Get date components
     const year = philippineTime.getFullYear();
-    const month = String(philippineTime.getMonth() + 1).padStart(2, '0');
+    const monthNum = philippineTime.getMonth() + 1; // 1-12
+    const monthStr = String(monthNum).padStart(2, '0');
     const day = String(philippineTime.getDate()).padStart(2, '0');
     return {
-      dateString: `${year}-${month}-${day}`, // YYYY-MM-DD
-      dayOfMonth: philippineTime.getDate()
+      dateString: `${year}-${monthStr}-${day}`, // YYYY-MM-DD
+      dayOfMonth: philippineTime.getDate(),
+      month: monthNum // 1-12 for invoice format (e.g. 2 for February)
     };
   };
 
-  // Generate invoice number (format: {orderNumber}M{day}D{orderNumber})
-  // Example: 1M17D1 = 1st order on the 17th day of the month
-  //          1M17D2 = 2nd order on the 17th day of the month
+  // Generate invoice number (format: AKGXT{month}M{day}D{orderNumber})
+  // Example: AKGXT2M17D1 = 1st order on Feb 17
+  //          AKGXT2M17D2 = 2nd order on Feb 17
   // Resets daily at 12:00 AM Philippine time (Asia/Manila, UTC+8)
   // The invoice number increments each time "Copy Invoice Order" is clicked (forceNew = true)
   // Subsequent calls (like "Order via Messenger") will reuse the same invoice number (forceNew = false)
   // Uses database (site_settings) to track invoice count with proper locking to prevent race conditions
   const generateInvoiceNumber = async (forceNew: boolean = false): Promise<string> => {
-    const { dateString: todayStr, dayOfMonth } = getPhilippineDate();
+    const { dateString: todayStr, dayOfMonth, month } = getPhilippineDate();
     
     // Check if we already generated an invoice number for today and forceNew is false
     // If forceNew is false, reuse the existing number from state
@@ -556,9 +558,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
 
       const orderNumber = currentCount;
 
-      // Format: 1M{day}D{orderNumber}
-      // Example: AKGXT1M17D1 (1st order on day 17), AKGXT1M17D2 (2nd order on day 17), etc.
-      const invoiceNumber = `AKGXT1M${dayOfMonth}D${orderNumber}`;
+      // Format: AKGXT{month}M{day}D{orderNumber}
+      // Example: AKGXT2M17D1 (1st order on Feb 17), AKGXT2M17D2 (2nd order on Feb 17), etc.
+      const invoiceNumber = `AKGXT${month}M${dayOfMonth}D${orderNumber}`;
       
       setGeneratedInvoiceNumber(invoiceNumber);
       setInvoiceNumberDate(todayStr);
@@ -568,8 +570,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     } catch (error) {
       console.error('Error generating invoice number:', error);
       // Fallback to a simple format if there's an error
-      const { dayOfMonth } = getPhilippineDate();
-      return `1M${dayOfMonth}D1`;
+      const { dayOfMonth, month } = getPhilippineDate();
+      return `AKGXT${month}M${dayOfMonth}D1`;
     }
   };
 
@@ -846,7 +848,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       if (needsSyncCopy) {
         // On iOS/Mac, we MUST copy synchronously within the user gesture
         // Use current count from DB (loaded on mount) or state so invoice number increments correctly
-        const { dateString: todayStr, dayOfMonth } = getPhilippineDate();
+        const { dateString: todayStr, dayOfMonth, month } = getPhilippineDate();
         
         let optimisticCount = 1;
         const ref = currentInvoiceCountRef.current;
@@ -854,12 +856,12 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           // Use DB-backed count so we get D88, not stuck at D1
           optimisticCount = ref.count + 1;
         } else if (generatedInvoiceNumber && invoiceNumberDate === todayStr) {
-          const match = generatedInvoiceNumber.match(/AKGXT1M\d+D(\d+)/);
+          const match = generatedInvoiceNumber.match(/AKGXT\d+M\d+D(\d+)/);
           if (match) optimisticCount = parseInt(match[1], 10) + 1;
         }
         currentInvoiceCountRef.current = { count: optimisticCount, date: todayStr };
         
-        const optimisticInvoiceNumber = `AKGXT1M${dayOfMonth}D${optimisticCount}`;
+        const optimisticInvoiceNumber = `AKGXT${month}M${dayOfMonth}D${optimisticCount}`;
         
         // Generate message synchronously (this function is async but doesn't do DB calls)
         message = await generateOrderMessageSync(optimisticInvoiceNumber);
@@ -903,7 +905,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           generateInvoiceNumber(true).then((actualInvoiceNumber) => {
             setGeneratedInvoiceNumber(actualInvoiceNumber);
             setInvoiceNumberDate(todayStr);
-            const m = actualInvoiceNumber.match(/AKGXT1M\d+D(\d+)/);
+            const m = actualInvoiceNumber.match(/AKGXT\d+M\d+D(\d+)/);
             if (m) currentInvoiceCountRef.current = { count: parseInt(m[1], 10), date: todayStr };
           }).catch(console.error);
         } else {
@@ -919,7 +921,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             generateInvoiceNumber(true).then((actualInvoiceNumber) => {
               setGeneratedInvoiceNumber(actualInvoiceNumber);
               setInvoiceNumberDate(todayStr);
-              const m = actualInvoiceNumber.match(/AKGXT1M\d+D(\d+)/);
+              const m = actualInvoiceNumber.match(/AKGXT\d+M\d+D(\d+)/);
               if (m) currentInvoiceCountRef.current = { count: parseInt(m[1], 10), date: todayStr };
             }).catch(console.error);
           } catch (clipboardError) {
