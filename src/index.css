@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* TT Drugs – primary font (add woff2 to public/fonts/ if self-hosting) */
+@font-face {
+  font-family: 'TT Drugs';
+  src: local('TT Drugs'),
+       url('/fonts/TTDrugs.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* In-Game Credits Theme Styles */
 /* Glassmorphism utilities */
 .glass {

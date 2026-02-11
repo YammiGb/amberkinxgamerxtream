@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { ArrowLeft, Upload, Copy, Check, MousePointerClick, Download } from 'lucide-react';
+import { ArrowLeft, Upload, Copy, Check, MousePointerClick, Download, Trash2 } from 'lucide-react';
 import { CartItem, CustomField } from '../types';
 import { usePaymentMethods, PaymentMethod } from '../hooks/usePaymentMethods';
 import { useImageUpload } from '../hooks/useImageUpload';
@@ -69,6 +69,9 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     } catch {
       return [];
     }
+  });
+  const [useBulkInput, setUseBulkInput] = useState(() => {
+    return localStorage.getItem('amber_checkout_useBulkInput') === 'true';
   });
   const [useMultipleAccounts, setUseMultipleAccounts] = useState(() => {
     return localStorage.getItem('amber_checkout_useMultipleAccounts') === 'true';
@@ -158,6 +161,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   React.useEffect(() => {
     safeSetItem('amber_checkout_bulkSelectedGames', JSON.stringify(bulkSelectedGames));
   }, [bulkSelectedGames]);
+
+  React.useEffect(() => {
+    safeSetItem('amber_checkout_useBulkInput', useBulkInput.toString());
+  }, [useBulkInput]);
 
   React.useEffect(() => {
     safeSetItem('amber_checkout_useMultipleAccounts', useMultipleAccounts.toString());
@@ -404,13 +411,32 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   };
 
   const handleBulkGameSelectionChange = (itemId: string, checked: boolean) => {
-    // itemId is the cart item ID, convert to original menu item ID
     const originalId = getOriginalMenuItemId(itemId);
     if (checked) {
       setBulkSelectedGames(prev => [...prev, originalId]);
     } else {
       setBulkSelectedGames(prev => prev.filter(id => id !== originalId));
     }
+  };
+
+  const removeExtraAccount = (originalId: string, accIdxToRemove: number, fieldKeys: string[]) => {
+    const currentExtra = extraAccountCount[originalId] ?? 0;
+    if (currentExtra <= 0 || accIdxToRemove < 1) return;
+    setExtraAccountCount(prev => ({ ...prev, [originalId]: currentExtra - 1 }));
+    setCustomFieldValues(prev => {
+      const next = { ...prev };
+      const totalAccounts = 1 + currentExtra;
+      fieldKeys.forEach(fieldKey => {
+        delete next[`${originalId}_acc${accIdxToRemove}_${fieldKey}`];
+        for (let j = accIdxToRemove + 1; j < totalAccounts; j++) {
+          const fromKey = `${originalId}_acc${j}_${fieldKey}`;
+          const toKey = `${originalId}_acc${j - 1}_${fieldKey}`;
+          if (prev[fromKey] !== undefined) next[toKey] = prev[fromKey];
+          delete next[fromKey];
+        }
+      });
+      return next;
+    });
   };
 
 
@@ -612,69 +638,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     lines.push(`${toBold('INVOICE')} # ${invoiceNumber}`);
     lines.push(''); // Break after invoice
     
-    // Handle multiple accounts mode
-    if (useMultipleAccounts && canUseMultipleAccounts) {
-      // Group by game and variation
-      const gameGroups = new Map<string, Array<{ variationName: string; items: CartItem[]; fields: Array<{ label: string, value: string }> }>>();
-      
-      itemsByGameAndVariation.forEach(({ gameId, gameName, variationId, variationName, items }) => {
-        const firstItem = items[0];
-        if (!firstItem.customFields) return;
-        
-        const fields = firstItem.customFields.map(field => {
-          const valueKey = `${gameId}_${variationId}_${field.key}`;
-          const value = customFieldValues[valueKey] || '';
-          return value ? { label: field.label, value } : null;
-        }).filter(Boolean) as Array<{ label: string, value: string }>;
-        
-        if (fields.length === 0) return;
-        
-        if (!gameGroups.has(gameName)) {
-          gameGroups.set(gameName, []);
-        }
-        gameGroups.get(gameName)!.push({ variationName, items, fields });
-      });
-      
-      // Build message for each game (game name mentioned once)
-      gameGroups.forEach((variations, gameName) => {
-        lines.push(`${toBold('GAME')}: ${gameName}`);
-        
-        variations.forEach(({ variationName, items, fields }) => {
-          // ID & SERVER or other fields
-          if (fields.length === 1) {
-            lines.push(`${toBold(fields[0].label)}: ${fields[0].value}`);
-          } else if (fields.length > 1) {
-            // Combine fields with & if multiple
-            const allValuesSame = fields.every(f => f.value === fields[0].value);
-            if (allValuesSame) {
-              const labels = fields.map(f => f.label);
-              if (labels.length === 2) {
-                lines.push(`${toBold(labels[0])} & ${toBold(labels[1])}: ${fields[0].value}`);
-              } else {
-                const allButLast = labels.slice(0, -1).map(l => toBold(l)).join(', ');
-                const lastLabel = toBold(labels[labels.length - 1]);
-                lines.push(`${allButLast} & ${lastLabel}: ${fields[0].value}`);
-              }
-            } else {
-              // Different values, show each field separately
-              fields.forEach(field => {
-                lines.push(`${toBold(field.label)}: ${field.value}`);
-              });
-            }
-          }
-          
-          // Order items for this variation
-          items.forEach(item => {
-            const variationText = item.selectedVariation ? ` ${item.selectedVariation.name}` : '';
-            const addOnsText = item.selectedAddOns && item.selectedAddOns.length > 0
-              ? ` + ${item.selectedAddOns.map(a => a.name).join(', ')}`
-              : '';
-            lines.push(`${toBold('ORDER')}: ${item.name}${variationText}${addOnsText} x${item.quantity} - ₱${item.totalPrice * item.quantity}`);
-          });
-        });
-      });
-    } else if (hasAnyCustomFields) {
-      const hasExtraAccounts = Object.values(extraAccountCount).some(c => c > 0);
+    if (hasAnyCustomFields) {
+      const hasExtraAccounts = useMultipleAccounts && Object.values(extraAccountCount).some(c => c > 0);
       if (hasExtraAccounts) {
         itemsWithCustomFields.forEach(item => {
           const originalId = getOriginalMenuItemId(item.id);
@@ -1046,69 +1011,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     lines.push(`${toBold('INVOICE')} # ${invoiceNumber}`);
     lines.push(''); // Break after invoice
     
-    // Handle multiple accounts mode
-    if (useMultipleAccounts && canUseMultipleAccounts) {
-      // Group by game and variation
-      const gameGroups = new Map<string, Array<{ variationName: string; items: CartItem[]; fields: Array<{ label: string, value: string }> }>>();
-      
-      itemsByGameAndVariation.forEach(({ gameId, gameName, variationId, variationName, items }) => {
-        const firstItem = items[0];
-        if (!firstItem.customFields) return;
-        
-        const fields = firstItem.customFields.map(field => {
-          const valueKey = `${gameId}_${variationId}_${field.key}`;
-          const value = customFieldValues[valueKey] || '';
-          return value ? { label: field.label, value } : null;
-        }).filter(Boolean) as Array<{ label: string, value: string }>;
-        
-        if (fields.length === 0) return;
-        
-        if (!gameGroups.has(gameName)) {
-          gameGroups.set(gameName, []);
-        }
-        gameGroups.get(gameName)!.push({ variationName, items, fields });
-      });
-      
-      // Build message for each game (game name mentioned once)
-      gameGroups.forEach((variations, gameName) => {
-        lines.push(`${toBold('GAME')}: ${gameName}`);
-        
-        variations.forEach(({ variationName, items, fields }) => {
-          // ID & SERVER or other fields
-          if (fields.length === 1) {
-            lines.push(`${toBold(fields[0].label)}: ${fields[0].value}`);
-          } else if (fields.length > 1) {
-            // Combine fields with & if multiple
-            const allValuesSame = fields.every(f => f.value === fields[0].value);
-            if (allValuesSame) {
-              const labels = fields.map(f => f.label);
-              if (labels.length === 2) {
-                lines.push(`${toBold(labels[0])} & ${toBold(labels[1])}: ${fields[0].value}`);
-              } else {
-                const allButLast = labels.slice(0, -1).map(l => toBold(l)).join(', ');
-                const lastLabel = toBold(labels[labels.length - 1]);
-                lines.push(`${allButLast} & ${lastLabel}: ${fields[0].value}`);
-              }
-            } else {
-              // Different values, show each field separately
-              fields.forEach(field => {
-                lines.push(`${toBold(field.label)}: ${field.value}`);
-              });
-            }
-          }
-          
-          // Order items for this variation
-          items.forEach(item => {
-            const variationText = item.selectedVariation ? ` ${item.selectedVariation.name}` : '';
-            const addOnsText = item.selectedAddOns && item.selectedAddOns.length > 0
-              ? ` + ${item.selectedAddOns.map(a => a.name).join(', ')}`
-              : '';
-            lines.push(`${toBold('ORDER')}: ${item.name}${variationText}${addOnsText} x${item.quantity} - ₱${item.totalPrice * item.quantity}`);
-          });
-        });
-      });
-    } else if (hasAnyCustomFields) {
-      const hasExtraAccounts = Object.values(extraAccountCount).some(c => c > 0);
+    if (hasAnyCustomFields) {
+      const hasExtraAccounts = useMultipleAccounts && Object.values(extraAccountCount).some(c => c > 0);
       if (hasExtraAccounts) {
         itemsWithCustomFields.forEach(item => {
           const originalId = getOriginalMenuItemId(item.id);
@@ -1462,36 +1366,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   const getCustomerInfo = () => {
     let customerInfo: Record<string, string> | Array<{ game: string; package: string; fields: Record<string, string> }>;
     
-    if (useMultipleAccounts && canUseMultipleAccounts) {
-      // Multiple accounts mode: store as array
-      const accountsData: Array<{ game: string; package: string; fields: Record<string, string> }> = [];
-      
-      itemsByGameAndVariation.forEach(({ gameId, gameName, variationId, variationName, items }) => {
-        const firstItem = items[0];
-        if (!firstItem.customFields) return;
-        
-        const fields: Record<string, string> = {};
-        firstItem.customFields.forEach(field => {
-          const valueKey = `${gameId}_${variationId}_${field.key}`;
-          const value = customFieldValues[valueKey];
-          if (value) {
-            fields[field.label] = value;
-          }
-        });
-        
-        if (Object.keys(fields).length > 0) {
-          accountsData.push({
-            game: gameName,
-            package: variationName,
-            fields
-          });
-        }
-      });
-      
-      customerInfo = accountsData.length > 0 ? accountsData : {};
-    } else {
-      // Single account mode: store as flat object, or array if extra accounts
-      const hasExtraAccounts = Object.values(extraAccountCount).some(c => c > 0);
+    // Single account mode: store as flat object, or array if extra accounts (Multiple Accounts on + Add used)
+      const hasExtraAccounts = useMultipleAccounts && Object.values(extraAccountCount).some(c => c > 0);
       
       if (hasExtraAccounts && hasAnyCustomFields) {
         // Multiple accounts via "Add [field]" - use array format
@@ -1551,7 +1427,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
         }
         customerInfo = singleAccountInfo;
       }
-    }
     return customerInfo;
   };
 
@@ -1618,35 +1493,27 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
 
   const isDetailsValid = useMemo(() => {
     if (!hasAnyCustomFields) {
-      // Default IGN field
       return customFieldValues['default_ign']?.trim() || false;
     }
     
-    // Multiple accounts mode
-    if (useMultipleAccounts && canUseMultipleAccounts) {
-      return itemsByGameAndVariation.every(({ gameId, variationId, items }) => {
-        const firstItem = items[0];
-        if (!firstItem.customFields) return true;
-        
-        return firstItem.customFields.every(field => {
-          if (!field.required) return true;
-          const valueKey = `${gameId}_${variationId}_${field.key}`;
-          return customFieldValues[valueKey]?.trim() || false;
-        });
-      });
-    }
-    
-    // Single account mode: Check all required fields for all items (use original menu item ID)
+    // Check all required fields for all items and all accounts (Account 1 + extra when Multiple Accounts on)
     return itemsWithCustomFields.every(item => {
       if (!item.customFields) return true;
       const originalId = getOriginalMenuItemId(item.id);
-      return item.customFields.every(field => {
-        if (!field.required) return true;
-        const valueKey = `${originalId}_${field.key}`;
-        return customFieldValues[valueKey]?.trim() || false;
-      });
+      const extraCount = useMultipleAccounts ? (extraAccountCount[originalId] ?? 0) : 0;
+      const totalAccounts = 1 + extraCount;
+      
+      for (let accIdx = 0; accIdx < totalAccounts; accIdx++) {
+        const valueKeyPrefix = accIdx === 0 ? `${originalId}_` : `${originalId}_acc${accIdx}_`;
+        const allRequired = item.customFields.every(field => {
+          if (!field.required) return true;
+          return customFieldValues[valueKeyPrefix + field.key]?.trim() || false;
+        });
+        if (!allRequired) return false;
+      }
+      return true;
     });
-  }, [hasAnyCustomFields, itemsWithCustomFields, customFieldValues, useMultipleAccounts, canUseMultipleAccounts, itemsByGameAndVariation]);
+  }, [hasAnyCustomFields, itemsWithCustomFields, customFieldValues, useMultipleAccounts, extraAccountCount]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -1671,60 +1538,71 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
             </div>
             
             <form className="space-y-6">
-              {/* Bulk Input Section */}
+              {/* Bulk Input Toggle */}
               {itemsWithCustomFields.length >= 2 && (
                 <div className="mb-6 p-4 glass-strong border border-cafe-primary/30 rounded-lg">
-                  <h3 className="text-sm font-semibold text-cafe-text mb-4">Bulk Input</h3>
-                  <p className="text-sm text-cafe-textMuted mb-4">
-                    Select games and fill fields once for all selected games.
-                  </p>
-                  
-                  {/* Game Selection Checkboxes */}
-                  <div className="space-y-2 mb-4">
-                    {itemsWithCustomFields.map((item) => {
-                      const originalId = getOriginalMenuItemId(item.id);
-                      const isSelected = bulkSelectedGames.includes(originalId);
-                      return (
-                        <label
-                          key={item.id}
-                          className="flex items-center space-x-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => handleBulkGameSelectionChange(item.id, e.target.checked)}
-                            className="w-4 h-4 text-cafe-primary border-cafe-primary/30 rounded focus:ring-cafe-primary"
-                          />
-                          <span className="text-sm text-cafe-text">{item.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useBulkInput}
+                      onChange={(e) => setUseBulkInput(e.target.checked)}
+                      className="w-5 h-5 text-cafe-primary border-cafe-primary/30 rounded focus:ring-cafe-primary"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-cafe-text">Bulk Input</p>
+                      <p className="text-xs text-cafe-textMuted">Select games and fill fields once for all selected games.</p>
+                    </div>
+                  </label>
+                  {useBulkInput && (
+                    <div className="mt-4 pt-4 border-t border-cafe-primary/20 space-y-4">
+                      {/* Game Selection Checkboxes */}
+                      <div className="space-y-2">
+                        {itemsWithCustomFields.map((item) => {
+                          const originalId = getOriginalMenuItemId(item.id);
+                          const isSelected = bulkSelectedGames.includes(originalId);
+                          return (
+                            <label
+                              key={item.id}
+                              className="flex items-center space-x-2 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={(e) => handleBulkGameSelectionChange(item.id, e.target.checked)}
+                                className="w-4 h-4 text-cafe-primary border-cafe-primary/30 rounded focus:ring-cafe-primary"
+                              />
+                              <span className="text-sm text-cafe-text">{item.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
 
-                  {/* Input Fields - Only show if games are selected */}
-                  {bulkSelectedGames.length > 0 && bulkInputFields.length > 0 && (
-                    <div className="space-y-4 mt-4 pt-4 border-t border-cafe-primary/20">
-                      {bulkInputFields.map(({ index, field }) => (
-                        <div key={index}>
-                          <label className="block text-sm font-medium text-cafe-text mb-2">
-                            {field ? field.label : `Field ${index + 1}`} <span className="text-cafe-textMuted">(Bulk)</span> {field?.required && <span className="text-red-500">*</span>}
-                          </label>
-                          <input
-                            type="text"
-                            value={bulkInputValues[index.toString()] || ''}
-                            onChange={(e) => handleBulkInputChange(index.toString(), e.target.value)}
-                            className="w-full px-4 py-3 glass border border-cafe-primary/30 rounded-lg focus:ring-2 focus:ring-cafe-primary focus:border-cafe-primary transition-all duration-200 text-sm text-cafe-text placeholder-cafe-textMuted"
-                            placeholder={field?.placeholder || field?.label || `Field ${index + 1}`}
-                          />
+                      {/* Input Fields - Only show if games are selected */}
+                      {bulkSelectedGames.length > 0 && bulkInputFields.length > 0 && (
+                        <div className="space-y-4">
+                          {bulkInputFields.map(({ index, field }) => (
+                            <div key={index}>
+                              <label className="block text-sm font-medium text-cafe-text mb-2">
+                                {field ? field.label : `Field ${index + 1}`} <span className="text-cafe-textMuted">(Bulk)</span> {field?.required && <span className="text-red-500">*</span>}
+                              </label>
+                              <input
+                                type="text"
+                                value={bulkInputValues[index.toString()] || ''}
+                                onChange={(e) => handleBulkInputChange(index.toString(), e.target.value)}
+                                className="w-full px-4 py-3 glass border border-cafe-primary/30 rounded-lg focus:ring-2 focus:ring-cafe-primary focus:border-cafe-primary transition-all duration-200 text-sm text-cafe-text placeholder-cafe-textMuted"
+                                placeholder={field?.placeholder || field?.label || `Field ${index + 1}`}
+                              />
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
               )}
 
-              {/* Multiple Accounts Toggle */}
-              {canUseMultipleAccounts && (
+              {/* Multiple Accounts Toggle - show always when there are cart items (single or multiple packages) */}
+              {cartItems.length > 0 && (
                 <div className="mb-6 p-4 glass-strong border border-cafe-primary/30 rounded-lg">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -1735,73 +1613,42 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     />
                     <div>
                       <p className="text-sm font-medium text-cafe-text">Multiple Accounts</p>
-                      <p className="text-xs text-cafe-textMuted">Enable if you need separate account information for different packages of the same game</p>
+                      <p className="text-xs text-cafe-textMuted">Add a second account (or more) for the same order.</p>
                     </div>
                   </label>
+                  {/* Add account button(s) inside this card - one per game when Multiple Accounts is on (only for games with custom fields) */}
+                  {useMultipleAccounts && hasAnyCustomFields && (
+                    <div className="mt-4 pt-4 border-t border-cafe-primary/20 space-y-2">
+                      {itemsWithCustomFields.map((item) => {
+                        const originalId = getOriginalMenuItemId(item.id);
+                        const firstFieldLabel = item.customFields?.[0]?.label || 'Account';
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setExtraAccountCount(prev => ({
+                              ...prev,
+                              [originalId]: (prev[originalId] ?? 0) + 1
+                            }))}
+                            className="w-full px-3 py-2 text-sm font-medium text-cafe-primary border border-cafe-primary/50 rounded-lg hover:bg-cafe-primary/10 transition-colors text-left flex items-center gap-2"
+                          >
+                            <span>+ Add {firstFieldLabel}</span>
+                            <span className="text-cafe-textMuted text-xs">({item.name})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Dynamic Custom Fields grouped by game */}
               {hasAnyCustomFields ? (
-                useMultipleAccounts && canUseMultipleAccounts ? (
-                  // Multiple accounts mode: show fields for each package
-                  itemsByGameAndVariation.map(({ gameId, gameName, variationId, variationName, items }) => {
-                    const firstItem = items[0];
-                    if (!firstItem.customFields) return null;
-
-                    return (
-                      <div key={`${gameId}_${variationId}`} className="space-y-4 pb-6 border-b border-cafe-primary/20 last:border-b-0 last:pb-0">
-                        <div className="mb-4 flex items-center gap-4">
-                          {/* Game Icon */}
-                          <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-cafe-darkCard to-cafe-darkBg">
-                            {firstItem.image ? (
-                              <img
-                                src={firstItem.image}
-                                alt={gameName}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.style.display = 'none';
-                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                }}
-                              />
-                            ) : null}
-                            <div className={`absolute inset-0 flex items-center justify-center ${firstItem.image ? 'hidden' : ''}`}>
-                              <div className="text-4xl opacity-20 text-gray-400">🎮</div>
-                            </div>
-                          </div>
-                          <div>
-                            <h3 className="text-lg font-semibold text-cafe-text">{gameName}</h3>
-                            <p className="text-sm text-cafe-textMuted">{variationName}</p>
-                          </div>
-                        </div>
-                        {firstItem.customFields.map((field, fieldIndex) => {
-                          const valueKey = `${gameId}_${variationId}_${field.key}`;
-                          return (
-                            <div key={`${gameId}_${variationId}_field_${fieldIndex}`}>
-                              <label className="block text-sm font-medium text-cafe-text mb-2">
-                                {field.label} {field.required && <span className="text-red-500">*</span>}
-                              </label>
-                              <input
-                                type="text"
-                                value={customFieldValues[valueKey] || ''}
-                                onChange={(e) => setCustomFieldValues(prev => ({ ...prev, [valueKey]: e.target.value }))}
-                                className="w-full px-3 py-2 glass border border-cafe-primary/30 rounded-lg focus:ring-2 focus:ring-cafe-primary focus:border-cafe-primary transition-all duration-200 text-sm text-cafe-text placeholder-cafe-textMuted"
-                                placeholder={field.placeholder || field.label}
-                                required={field.required}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })
-                ) : (
-                  // Single account mode: show fields grouped by game, with optional extra accounts
+                  // Single account mode: show fields grouped by game; extra accounts and Add button only when Multiple Accounts is on
                   itemsWithCustomFields.map((item) => {
                     const originalId = getOriginalMenuItemId(item.id);
-                    const extraCount = extraAccountCount[originalId] ?? 0;
+                    const extraCount = useMultipleAccounts ? (extraAccountCount[originalId] ?? 0) : 0;
                     const totalAccounts = 1 + extraCount;
-                    const firstFieldLabel = item.customFields?.[0]?.label || 'Account';
                     return (
                     <div key={item.id} className="space-y-4 pb-6 border-b border-cafe-primary/20 last:border-b-0 last:pb-0">
                       <div className="mb-4 flex items-center gap-4">
@@ -1832,7 +1679,17 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                       {Array.from({ length: totalAccounts }, (_, accIdx) => (
                         <div key={`${originalId}_acc${accIdx}`} className="space-y-4">
                           {accIdx > 0 && (
-                            <h4 className="text-sm font-medium text-cafe-primary">{item.name} – Account {accIdx + 1}</h4>
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="text-sm font-medium text-cafe-primary">{item.name} – Account {accIdx + 1}</h4>
+                              <button
+                                type="button"
+                                onClick={() => removeExtraAccount(originalId, accIdx, item.customFields?.map(f => f.key) ?? [])}
+                                className="p-1.5 rounded-lg text-red-400 hover:bg-red-400/20 transition-colors"
+                                title="Remove this account"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           )}
                           {item.customFields?.map((field, fieldIndex) => {
                             const valueKey = accIdx === 0
@@ -1854,19 +1711,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                                   placeholder={field.placeholder || field.label}
                                   required={field.required}
                                 />
-                                {/* Add button below last field of last account */}
-                                {accIdx === totalAccounts - 1 && fieldIndex === (item.customFields?.length ?? 0) - 1 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setExtraAccountCount(prev => ({
-                                      ...prev,
-                                      [originalId]: (prev[originalId] ?? 0) + 1
-                                    }))}
-                                    className="mt-3 px-3 py-2 text-sm font-medium text-cafe-primary border border-cafe-primary/50 rounded-lg hover:bg-cafe-primary/10 transition-colors"
-                                  >
-                                    + Add {firstFieldLabel}
-                                  </button>
-                                )}
                               </div>
                             );
                           })}
@@ -1875,7 +1719,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     </div>
                     );
                   })
-                )
               ) : (
                 <div>
                   <label className="block text-sm font-medium text-cafe-text mb-2">

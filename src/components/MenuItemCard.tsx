@@ -30,6 +30,12 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const [memberDiscounts, setMemberDiscounts] = useState<Record<string, number>>({});
   const [priceUpdateKey, setPriceUpdateKey] = useState(0); // Force re-render when member changes
   const [tappedVariationId, setTappedVariationId] = useState<string | null>(null);
+  const [descriptionVisible, setDescriptionVisible] = useState(true);
+
+  // Reset description visible when modal closes
+  useEffect(() => {
+    if (!showCustomization) setDescriptionVisible(true);
+  }, [showCustomization]);
 
   // Force price update when member changes (login/logout)
   useEffect(() => {
@@ -156,11 +162,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
     <>
       <div 
         onClick={handleCardClick}
-        className={`relative flex flex-row items-center transition-all duration-300 group rounded-xl p-3 md:p-4 gap-2 md:gap-3 ${!item.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer menu-game-card'}`}
+        className={`relative flex flex-row items-center transition-all duration-300 group rounded-lg p-2 sm:p-2.5 gap-2 ${!item.available ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer menu-game-card'}`}
         style={{
           background: '#F5F0E6',
           boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-          minHeight: '100px'
+          minHeight: '72px'
         }}
         onMouseEnter={(e) => {
           if (item.available) {
@@ -185,8 +191,8 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             <span className="text-white font-bold text-lg sm:text-xl opacity-90 font-anton italic">Closed</span>
           </div>
         )}
-        {/* Square Game Icon on Left */}
-        <div className="relative w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-cafe-darkCard to-cafe-darkBg transition-transform duration-300 group-hover:scale-105">
+        {/* Square Game Icon on Left - smaller for single-line text fit */}
+        <div className="relative w-14 h-14 sm:w-16 sm:h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gradient-to-br from-cafe-darkCard to-cafe-darkBg transition-transform duration-300 group-hover:scale-105">
           {item.image ? (
             <img
               src={item.image}
@@ -201,20 +207,22 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             />
           ) : null}
           <div className={`absolute inset-0 flex items-center justify-center ${item.image ? 'hidden' : ''}`}>
-            <div className="text-4xl opacity-20 text-gray-400">🎮</div>
+            <div className="text-2xl sm:text-3xl opacity-20 text-gray-400">🎮</div>
           </div>
         </div>
         
-        {/* Game Name and Info on Right */}
+        {/* Game Name and Info on Right - single line each with ellipsis */}
         <div className="flex-1 overflow-hidden min-w-0">
           <h4 
             ref={nameRef}
-            className={`text-neutral-800 font-bold whitespace-nowrap text-base sm:text-lg mb-1 ${
-              shouldScroll ? 'animate-scroll-text' : ''
+            className={`text-neutral-800 font-bold text-[10px] sm:text-xs mb-0.5 ${
+              shouldScroll ? 'animate-scroll-text' : 'truncate'
             }`}
             style={shouldScroll ? {
               display: 'inline-block',
+              whiteSpace: 'nowrap',
             } : {}}
+            title={item.name}
           >
             {shouldScroll ? (
               <>
@@ -227,7 +235,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
             )}
           </h4>
           {item.subtitle && (
-            <p className="text-xs sm:text-sm text-neutral-700">
+            <p className="text-[9px] sm:text-[10px] text-neutral-700 truncate" title={item.subtitle}>
               {item.subtitle}
             </p>
           )}
@@ -277,7 +285,32 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   <p className="text-sm text-white/95 mt-1 drop-shadow-md">{item.subtitle}</p>
                 )}
                 {item.description && (
-                  <p className="text-sm text-white/90 mt-2 drop-shadow-md whitespace-pre-line break-words max-w-full">{item.description}</p>
+                  <div className="mt-2">
+                    {descriptionVisible ? (
+                      <>
+                        <p className="text-[10px] sm:text-xs text-white/90 drop-shadow-md whitespace-pre-line break-words max-w-full">{item.description}</p>
+                        <div className="flex justify-end mt-1">
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setDescriptionVisible(false); }}
+                            className="text-xs text-white/80 hover:text-white underline drop-shadow-md"
+                          >
+                            Show less
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setDescriptionVisible(true); }}
+                          className="text-xs text-white/80 hover:text-white underline drop-shadow-md"
+                        >
+                          Show more
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               <button
@@ -378,16 +411,16 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                                       <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />
                                     </div>
                                     <div className="flex flex-col">
-                                      <div className="font-semibold text-gray-900 text-sm mb-1">
+                                      <div className="font-semibold text-gray-900 text-[10px] sm:text-xs mb-1">
                                         {variation.name}
                                       </div>
                                       {variation.description && (
-                                        <div className="text-xs text-gray-600 mb-2 whitespace-pre-line break-words">
+                                        <div className="text-[10px] sm:text-xs text-gray-600 mb-2 whitespace-pre-line break-words">
                                           {variation.description}
                                         </div>
                                       )}
                                       <div className="mt-auto">
-                                        <div className="text-base font-bold text-gray-900">
+                                        <div className="text-[10px] sm:text-xs font-bold text-gray-900">
                                           ₱{discountedPrice.toFixed(2)}
                                         </div>
                                         {isDiscounted && (

@@ -23,7 +23,7 @@ export default {
         }
       },
       fontFamily: {
-        'sans': ['Poppins', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        'sans': ['TT Drugs', 'Poppins', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
         'anton': ['Anton', 'sans-serif'],
         'montserrat': ['Montserrat', 'sans-serif'],
       },
