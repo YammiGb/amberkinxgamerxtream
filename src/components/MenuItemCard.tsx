@@ -30,12 +30,6 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   const [memberDiscounts, setMemberDiscounts] = useState<Record<string, number>>({});
   const [priceUpdateKey, setPriceUpdateKey] = useState(0); // Force re-render when member changes
   const [tappedVariationId, setTappedVariationId] = useState<string | null>(null);
-  const [descriptionVisible, setDescriptionVisible] = useState(true);
-
-  // Reset description visible when modal closes
-  useEffect(() => {
-    if (!showCustomization) setDescriptionVisible(true);
-  }, [showCustomization]);
 
   // Force price update when member changes (login/logout)
   useEffect(() => {
@@ -285,32 +279,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                   <p className="text-sm text-white/95 mt-1 drop-shadow-md">{item.subtitle}</p>
                 )}
                 {item.description && (
-                  <div className="mt-2">
-                    {descriptionVisible ? (
-                      <>
-                        <p className="text-[10px] sm:text-xs text-white/90 drop-shadow-md whitespace-pre-line break-words max-w-full">{item.description}</p>
-                        <div className="flex justify-end mt-1">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setDescriptionVisible(false); }}
-                            className="text-xs text-white/80 hover:text-white underline drop-shadow-md"
-                          >
-                            Show less
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setDescriptionVisible(true); }}
-                          className="text-xs text-white/80 hover:text-white underline drop-shadow-md"
-                        >
-                          Show more
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <p className="text-[10px] sm:text-xs text-white/90 drop-shadow-md whitespace-pre-line break-words max-w-full mt-2">{item.description}</p>
                 )}
               </div>
               <button
@@ -339,7 +308,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 }}
               />
               
-              <div className="p-6 pt-4">
+              <div className="p-6 pt-8">
                 {/* Show currency packages grouped by category */}
                 {item.variations && item.variations.length > 0 ? (
                   (() => {
