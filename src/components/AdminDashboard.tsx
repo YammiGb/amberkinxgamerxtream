@@ -1,6 +1,224 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, TrendingUp, Package, Users, Lock, FolderOpen, CreditCard, Settings, ArrowUpDown, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Star, Activity, FilePlus, List, FolderTree, Wallet, Cog, Trophy, DollarSign, Clock, Gamepad2, Copy } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, TrendingUp, Package, Users, Lock, FolderOpen, CreditCard, Settings, ArrowUpDown, ChevronDown, ChevronUp, ShoppingBag, CheckCircle, Star, Activity, FilePlus, List, FolderTree, Wallet, Cog, Trophy, DollarSign, Clock, Gamepad2, Copy, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { MenuItem, Variation, CustomField } from '../types';
+
+/** Wrapper for package category block so it can be reordered by drag. Renders children with ref, style, and injects drag handle props. */
+function SortablePackageCategory({
+  id,
+  children,
+}: {
+  id: string;
+  children: (props: {
+    setNodeRef: (node: HTMLElement | null) => void;
+    style: React.CSSProperties;
+    attributes: Record<string, unknown>;
+    listeners: Record<string, unknown> | undefined;
+    isDragging: boolean;
+  }) => React.ReactNode;
+}) {
+  const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return <>{children({ setNodeRef, style, attributes: attributes as unknown as Record<string, unknown>, listeners: listeners as unknown as Record<string, unknown> | undefined, isDragging })}</>;
+}
+
+interface SortableGameItemRowProps {
+  item: MenuItem;
+  categoryName: string;
+  selectedItems: string[];
+  onSelectItem: (id: string) => void;
+  isProcessing: boolean;
+  onEditItem: (item: MenuItem) => void;
+  onDuplicateItem: (id: string) => void;
+  onDeleteItem: (id: string) => void;
+}
+
+function SortableGameItemRow({
+  item,
+  categoryName,
+  selectedItems,
+  onSelectItem,
+  isProcessing,
+  onEditItem,
+  onDuplicateItem,
+  onDeleteItem,
+}: SortableGameItemRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`${isDragging ? 'opacity-60 bg-white shadow-lg z-10' : ''} hover:bg-gray-50`}
+    >
+      <td className="px-4 py-3 w-10 cursor-grab active:cursor-grabbing touch-none" {...attributes} {...listeners}>
+        <GripVertical className="h-4 w-4 text-gray-400" aria-hidden />
+      </td>
+      <td className="px-6 py-4">
+        <input
+          type="checkbox"
+          checked={selectedItems.includes(item.id)}
+          onChange={() => onSelectItem(item.id)}
+          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      </td>
+      <td className="px-6 py-4">
+        <div className="font-medium text-gray-900">{item.name}</div>
+      </td>
+      <td className="px-6 py-4 text-xs text-gray-500">{categoryName}</td>
+      <td className="px-6 py-4 text-xs text-gray-500">
+        {item.variations?.length || 0} package{(item.variations?.length || 0) !== 1 ? 's' : ''}
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex flex-col space-y-1">
+          {item.popular && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
+              Popular
+            </span>
+          )}
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              item.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}
+          >
+            {item.available ? 'Available' : 'Unavailable'}
+          </span>
+        </div>
+      </td>
+      <td className="px-6 py-4">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => onEditItem(item)}
+            disabled={isProcessing}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200"
+            title="Edit"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDuplicateItem(item.id)}
+            disabled={isProcessing}
+            className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
+            title="Duplicate Game Item"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDeleteItem(item.id)}
+            disabled={isProcessing}
+            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+interface SortableGameItemCardProps extends SortableGameItemRowProps {}
+
+function SortableGameItemCard(props: SortableGameItemCardProps) {
+  const { item, categoryName, selectedItems, onSelectItem, isProcessing, onEditItem, onDuplicateItem, onDeleteItem } = props;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-3 md:p-4 border-b border-gray-200 last:border-b-0 ${isDragging ? 'opacity-60 bg-white shadow-lg z-10' : ''} ${selectedItems.includes(item.id) ? 'bg-blue-50 border-blue-200' : ''}`}
+    >
+      <div className="flex items-center justify-between mb-2 md:mb-3">
+        <div className="flex items-center gap-2">
+          <div
+            className="p-1.5 cursor-grab active:cursor-grabbing touch-none rounded hover:bg-gray-100"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4 text-gray-400" aria-hidden />
+          </div>
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selectedItems.includes(item.id)}
+              onChange={() => onSelectItem(item.id)}
+              className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 md:w-5 md:h-5"
+            />
+            <span className="text-xs text-gray-600">Select</span>
+          </label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => onEditItem(item)}
+            disabled={isProcessing}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200"
+            title="Edit"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDuplicateItem(item.id)}
+            disabled={isProcessing}
+            className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
+            title="Duplicate Game Item"
+          >
+            <Copy className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDeleteItem(item.id)}
+            disabled={isProcessing}
+            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
+            title="Delete"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div className="flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-xs font-medium text-gray-900 truncate">{item.name}</h3>
+          <div className="mt-1 text-xs space-y-1">
+            <div>
+              <span className="text-gray-500">Category: </span>
+              <span className="text-gray-900">{categoryName}</span>
+            </div>
+            <div>
+              <span className="text-gray-500">Packages: </span>
+              <span className="text-gray-900">{item.variations?.length || 0}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center space-x-2">
+          {item.popular && (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
+              Popular
+            </span>
+          )}
+          <span
+            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              item.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}
+          >
+            {item.available ? 'Available' : 'Unavailable'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 import { useMenu } from '../hooks/useMenu';
 import { useCategories } from '../hooks/useCategories';
 import ImageUpload from './ImageUpload';
@@ -18,10 +236,31 @@ const AdminDashboard: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [adminPassword, setAdminPassword] = useState<string>('AmberKin@Admin!2025'); // Default fallback
-  const { menuItems, loading, addMenuItem, updateMenuItem, deleteMenuItem, duplicateMenuItem } = useMenu();
+  const { menuItems, loading, addMenuItem, updateMenuItem, updateMenuItemSortWithShift, reorderMenuItems, deleteMenuItem, duplicateMenuItem } = useMenu();
   const { categories } = useCategories();
   const [currentView, setCurrentView] = useState<'dashboard' | 'items' | 'add' | 'edit' | 'categories' | 'payments' | 'settings' | 'orders' | 'members'>('dashboard');
   const [pendingOrders, setPendingOrders] = useState<number>(0);
+  /** Flat list of menu items in sort order for drag-and-drop */
+  const sortedGameItems = useMemo(
+    () => [...menuItems].sort((a, b) => (a.sort_order || 1) - (b.sort_order || 1)),
+    [menuItems]
+  );
+
+  const gameItemsSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleGameItemsDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sortedGameItems.findIndex((i) => i.id === active.id);
+    const newIndex = sortedGameItems.findIndex((i) => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(sortedGameItems.map((i) => i.id), oldIndex, newIndex);
+    reorderMenuItems(newOrder);
+  };
 
   // Fetch admin password from database on mount
   useEffect(() => {
@@ -229,6 +468,9 @@ const AdminDashboard: React.FC = () => {
       };
 
       if (editingItem) {
+        if (itemData.sort_order !== undefined) {
+          await updateMenuItemSortWithShift(editingItem.id, itemData.sort_order);
+        }
         await updateMenuItem(editingItem.id, itemData);
         // Save discount values to localStorage
         const discounts = {
@@ -914,13 +1156,36 @@ const AdminDashboard: React.FC = () => {
                         return groupedByCategory[a].categorySort - groupedByCategory[b].categorySort;
                       });
 
+                      const getCategoryKeyForVariation = (v: Variation) => {
+                        if (v.category?.startsWith('__temp_empty_')) return v.category;
+                        if (!v.category || !String(v.category).trim()) return '__unnamed_category__';
+                        return v.category;
+                      };
+
+                      const handlePackageCategoriesDragEnd = (event: DragEndEvent) => {
+                        const { active, over } = event;
+                        if (!over || active.id === over.id) return;
+                        const oldIndex = sortedCategories.indexOf(active.id as string);
+                        const newIndex = sortedCategories.indexOf(over.id as string);
+                        if (oldIndex === -1 || newIndex === -1) return;
+                        const newOrder = arrayMove([...sortedCategories], oldIndex, newIndex);
+                        const keyToIndex: Record<string, number> = {};
+                        newOrder.forEach((key, i) => { keyToIndex[key] = i; });
+                        const updatedVariations = formData.variations!.map(v => ({
+                          ...v,
+                          sort: keyToIndex[getCategoryKeyForVariation(v)] ?? 999
+                        }));
+                        setFormData(prev => ({ ...prev, variations: updatedVariations }));
+                      };
+
                       return (
+                        <DndContext sensors={gameItemsSensors} collisionDetection={closestCenter} onDragEnd={handlePackageCategoriesDragEnd}>
+                          <SortableContext items={sortedCategories} strategy={verticalListSortingStrategy}>
                         <div className="space-y-6">
                           {/* Show all categories (including unnamed) */}
                           {sortedCategories.map((category) => {
                             const categoryData = groupedByCategory[category];
                             const categoryVariations = categoryData.variations;
-                            const categorySort = categoryData.categorySort;
                             const originalCategory = categoryData.originalCategory;
                             const isUnnamed = categoryData.isUnnamed;
                             // Display name: check if this is unnamed category, temporary empty category, or if original is empty
@@ -952,9 +1217,14 @@ const AdminDashboard: React.FC = () => {
                             const isCategoryCollapsed = collapsedCategories[category] ?? false;
                             
                             return (
-                              <div key={stableKey} className="border border-gray-300 rounded-lg p-4 bg-white">
-                                {/* Category Header */}
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4 pb-3 border-b border-gray-200">
+                              <SortablePackageCategory key={stableKey} id={category}>
+                                {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                              <div ref={setNodeRef} style={style} className={`border border-gray-300 rounded-lg p-4 bg-white ${isDragging ? 'opacity-60 shadow-lg' : ''}`}>
+                                {/* Category Header - one row: drag, dropdown, name, delete */}
+                                <div className="flex flex-row items-center gap-2 mb-4 pb-3 border-b border-gray-200">
+                                  <div {...attributes} {...listeners} className="p-1.5 touch-none cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded flex-shrink-0" aria-label="Drag to reorder category">
+                                    <GripVertical className="h-5 w-5" />
+                                  </div>
                                   <button
                                     onClick={() => {
                                       setCollapsedCategories(prev => ({
@@ -971,89 +1241,46 @@ const AdminDashboard: React.FC = () => {
                                       <ChevronUp className="h-5 w-5 text-gray-600" />
                                     )}
                                   </button>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <div className="flex-1 min-w-0">
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Category Name</label>
-                  <input
-                    type="text"
-                                        value={displayCategoryName}
-                                        onChange={(e) => {
-                                          // Allow editing all categories including "Unnamed Category"
-                                          if (isReadOnly) {
-                                            return;
-                                          }
-                                          
-                                          const newCategoryName = e.target.value;
-                                          // Find all variations in this category using the original category key
-                                          // We need to match variations that belong to this category group
-                                          const categoryVariationIds = new Set(categoryVariations.map(v => v.id));
-                                          
-                                          const updatedVariations = formData.variations!.map(v => {
-                                            // Check if this variation belongs to this category group
-                                            if (categoryVariationIds.has(v.id)) {
-                                              // If empty (after trimming), use a unique identifier based on first variation ID to keep this group separate
-                                              // Otherwise, set to the new name (preserve all spaces including leading/trailing)
-                                              if (newCategoryName.trim() === '') {
-                                                // Use the first variation ID as a temporary category identifier
-                                                // This ensures the category doesn't vanish - it will be grouped by this temp ID
-                                                const tempCategoryId = `__temp_empty_${categoryVariations[0]?.id || 'default'}__`;
-                                                return { ...v, category: tempCategoryId };
-                                              } else {
-                                                // If user types a name, preserve all spaces (including leading/trailing)
-                                                // Only trim when checking if empty, but preserve the actual value
-                                                return { ...v, category: newCategoryName };
-                                              }
-                                            }
-                                            return v;
-                                          });
-                                          setFormData({ ...formData, variations: updatedVariations });
-                                        }}
-                                        disabled={isReadOnly}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent text-xs font-semibold disabled:bg-gray-100 disabled:cursor-not-allowed"
-                                        placeholder="Category name (e.g., Category 1)"
-                                      />
-                                    </div>
-                                      <div className="w-24 sm:w-32 flex-shrink-0">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Category Sort</label>
+                                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                                    <label className="sr-only">Category Name</label>
                                     <input
-                                      type="number"
-                                      value={categorySort !== 999 ? categorySort : ''}
+                                      type="text"
+                                      value={displayCategoryName}
                                       onChange={(e) => {
-                                        const value = e.target.value === '' ? 999 : parseInt(e.target.value) || 999;
-                                        // Update sort for all variations in this category using variation IDs
+                                        if (isReadOnly) return;
+                                        const newCategoryName = e.target.value;
                                         const categoryVariationIds = new Set(categoryVariations.map(v => v.id));
                                         const updatedVariations = formData.variations!.map(v => {
                                           if (categoryVariationIds.has(v.id)) {
-                                            return { ...v, sort: value !== 999 ? value : undefined };
+                                            if (newCategoryName.trim() === '') {
+                                              const tempCategoryId = `__temp_empty_${categoryVariations[0]?.id || 'default'}__`;
+                                              return { ...v, category: tempCategoryId };
+                                            }
+                                            return { ...v, category: newCategoryName };
                                           }
                                           return v;
                                         });
                                         setFormData({ ...formData, variations: updatedVariations });
                                       }}
-                                          className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                      placeholder="Sort"
-                                      min="0"
-                                      step="1"
+                                      disabled={isReadOnly}
+                                      className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent text-xs font-semibold disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                      placeholder="Category name"
                                     />
-                                      </div>
-                                      {!isReadOnly && (
-                                        <button
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            console.log('Delete category clicked:', category);
-                                            setCategoryToDelete(category);
-                                          }}
-                                          className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200 flex-shrink-0 self-end mb-1"
-                                          aria-label="Delete category"
-                                          title="Delete category"
-                                          type="button"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </button>
-                                      )}
-                                    </div>
+                                    {!isReadOnly && (
+                                      <button
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          setCategoryToDelete(category);
+                                        }}
+                                        className="p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200 flex-shrink-0"
+                                        aria-label="Delete category"
+                                        title="Delete category"
+                                        type="button"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
 
@@ -1187,9 +1414,13 @@ const AdminDashboard: React.FC = () => {
                                 </div>
                                 )}
                               </div>
+                                )}
+                              </SortablePackageCategory>
                             );
                           })}
                         </div>
+                          </SortableContext>
+                        </DndContext>
                       );
                     })()
                   ) : (
@@ -1512,527 +1743,65 @@ const AdminDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* Desktop Table View - Grouped by Category */}
+            {/* Desktop Table View - Sortable drag-and-drop */}
             <div className="hidden md:block overflow-x-auto">
-              {(() => {
-                // Group menu items by category
-                const groupedByCategory = categories.reduce((acc, category) => {
-                  const categoryItems = menuItems
-                    .filter(item => item.category === category.id)
-                    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-                  if (categoryItems.length > 0) {
-                    acc[category.id] = {
-                      category,
-                      items: categoryItems
-                    };
-                  }
-                  return acc;
-                }, {} as Record<string, { category: typeof categories[0], items: MenuItem[] }>);
-
-                // Items without category
-                const uncategorizedItems = menuItems
-                  .filter(item => !categories.find(cat => cat.id === item.category))
-                  .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-
-                return (
-                  <div className="space-y-6">
-                    {/* Grouped by Category */}
-                    {Object.values(groupedByCategory).map(({ category, items }) => {
-                      const isCollapsed = collapsedCategories[category.id] || false;
-                      return (
-                      <div key={category.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div 
-                          className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex items-center justify-between cursor-pointer hover:bg-gray-200 transition-colors"
-                          onClick={() => setCollapsedCategories(prev => ({ ...prev, [category.id]: !prev[category.id] }))}
-                        >
-                          <h3 className="text-xs font-semibold text-gray-900">{category.name}</h3>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCollapsedCategories(prev => ({ ...prev, [category.id]: !prev[category.id] }));
-                            }}
-                            className="p-1 hover:bg-gray-300 rounded transition-colors"
-                          >
-                            {isCollapsed ? (
-                              <ChevronDown className="h-5 w-5 text-gray-600" />
-                            ) : (
-                              <ChevronUp className="h-5 w-5 text-gray-600" />
-                            )}
-                          </button>
-                        </div>
-                        {!isCollapsed && (
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Select</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Sort</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Name</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Packages</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                            {items.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.includes(item.id)}
-                          onChange={() => handleSelectItem(item.id)}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                      </td>
-                      <td className="px-6 py-4">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={item.sort_order || 0}
-                                    onChange={async (e) => {
-                                      const newSortOrder = parseInt(e.target.value) || 0;
-                                      await updateMenuItem(item.id, { ...item, sort_order: newSortOrder });
-                                    }}
-                                    className="w-20 px-2 py-1 border border-gray-300 rounded text-xs"
-                                  />
-                                </td>
-                                <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{item.name}</div>
-                                </td>
-                      <td className="px-6 py-4 text-xs text-gray-500">
-                                  {item.variations?.length || 0} package{item.variations?.length !== 1 ? 's' : ''}
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="flex flex-col space-y-1">
-                                    {item.popular && (
-                                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
-                                        Popular
-                                      </span>
-                                    )}
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                      item.available 
-                                        ? 'bg-green-100 text-green-800' 
-                                        : 'bg-red-100 text-red-800'
-                                    }`}>
-                                      {item.available ? 'Available' : 'Unavailable'}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="flex items-center space-x-2">
-                                    <button
-                                      onClick={() => handleEditItem(item)}
-                                      disabled={isProcessing}
-                                      className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200"
-                                      title="Edit"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDuplicateItem(item.id)}
-                                      disabled={isProcessing}
-                                      className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
-                                      title="Duplicate Game Item"
-                                    >
-                                      <Copy className="h-4 w-4" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteItem(item.id)}
-                                      disabled={isProcessing}
-                                      className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                                      title="Delete"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        )}
-                      </div>
-                      );
-                    })}
-                    
-                    {/* Un categorized Items */}
-                    {uncategorizedItems.length > 0 && (() => {
-                      const isCollapsed = collapsedCategories['__uncategorized__'] || false;
-                      return (
-                      <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div 
-                          className="bg-gray-100 px-6 py-3 border-b border-gray-200 flex items-center justify-between cursor-pointer hover:bg-gray-200 transition-colors"
-                          onClick={() => setCollapsedCategories(prev => ({ ...prev, '__uncategorized__': !prev['__uncategorized__'] }))}
-                        >
-                          <h3 className="text-xs font-semibold text-gray-900">Uncategorized</h3>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCollapsedCategories(prev => ({ ...prev, '__uncategorized__': !prev['__uncategorized__'] }));
-                            }}
-                            className="p-1 hover:bg-gray-300 rounded transition-colors"
-                          >
-                            {isCollapsed ? (
-                              <ChevronDown className="h-5 w-5 text-gray-600" />
-                            ) : (
-                              <ChevronUp className="h-5 w-5 text-gray-600" />
-                            )}
-                          </button>
-                        </div>
-                        {!isCollapsed && (
-                        <table className="w-full">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Select</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Sort</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Name</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Packages</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Status</th>
-                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200">
-                            {uncategorizedItems.map((item) => (
-                              <tr key={item.id} className="hover:bg-gray-50">
-                                <td className="px-6 py-4">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedItems.includes(item.id)}
-                                    onChange={() => handleSelectItem(item.id)}
-                                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                  />
-                                </td>
-                                <td className="px-6 py-4">
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={item.sort_order || 0}
-                                    onChange={async (e) => {
-                                      const newSortOrder = parseInt(e.target.value) || 0;
-                                      await updateMenuItem(item.id, { ...item, sort_order: newSortOrder });
-                                    }}
-                                    className="w-20 px-2 py-1 border border-gray-300 rounded text-xs"
-                                  />
-                                </td>
-                                <td className="px-6 py-4">
-                                  <div className="font-medium text-gray-900">{item.name}</div>
-                      </td>
-                      <td className="px-6 py-4 text-xs text-gray-500">
-                                  {item.variations?.length || 0} package{item.variations?.length !== 1 ? 's' : ''}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col space-y-1">
-                          {item.popular && (
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
-                              Popular
-                            </span>
-                          )}
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            item.available 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {item.available ? 'Available' : 'Unavailable'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEditItem(item)}
-                            disabled={isProcessing}
-                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200"
-                            title="Edit"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDuplicateItem(item.id)}
-                            disabled={isProcessing}
-                            className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
-                            title="Duplicate Game Item"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            disabled={isProcessing}
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-                        )}
-                      </div>
-                      );
-                    })()}
+              <DndContext sensors={gameItemsSensors} collisionDetection={closestCenter} onDragEnd={handleGameItemsDragEnd}>
+                <SortableContext items={sortedGameItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 w-10 text-xs font-medium text-gray-900">Drag</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Select</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Name</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Category</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Packages</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-900">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {sortedGameItems.map((item) => (
+                          <SortableGameItemRow
+                            key={item.id}
+                            item={item}
+                            categoryName={categories.find((cat) => cat.id === item.category)?.name ?? 'Uncategorized'}
+                            selectedItems={selectedItems}
+                            onSelectItem={handleSelectItem}
+                            isProcessing={isProcessing}
+                            onEditItem={handleEditItem}
+                            onDuplicateItem={handleDuplicateItem}
+                            onDeleteItem={handleDeleteItem}
+                          />
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                );
-              })()}
+                </SortableContext>
+              </DndContext>
             </div>
 
-            {/* Mobile Card View - Grouped by Category */}
+            {/* Mobile Card View - Sortable drag-and-drop */}
             <div className="md:hidden">
-              {(() => {
-                // Group menu items by category
-                const groupedByCategory = categories.reduce((acc, category) => {
-                  const categoryItems = menuItems
-                    .filter(item => item.category === category.id)
-                    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-                  if (categoryItems.length > 0) {
-                    acc[category.id] = {
-                      category,
-                      items: categoryItems
-                    };
-                  }
-                  return acc;
-                }, {} as Record<string, { category: typeof categories[0], items: MenuItem[] }>);
-
-                // Items without category
-                const uncategorizedItems = menuItems
-                  .filter(item => !categories.find(cat => cat.id === item.category))
-                  .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
-
-                return (
-                  <div className="space-y-4">
-                    {/* Grouped by Category */}
-                    {Object.values(groupedByCategory).map(({ category, items }) => {
-                      const isCollapsed = collapsedCategories[category.id] || false;
-                      return (
-                      <div key={category.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div 
-                          className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex items-center justify-between cursor-pointer hover:bg-gray-200 transition-colors"
-                          onClick={() => setCollapsedCategories(prev => ({ ...prev, [category.id]: !prev[category.id] }))}
-                        >
-                          <h3 className="text-xs font-semibold text-gray-900">{category.name}</h3>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCollapsedCategories(prev => ({ ...prev, [category.id]: !prev[category.id] }));
-                            }}
-                            className="p-1 hover:bg-gray-300 rounded transition-colors"
-                          >
-                            {isCollapsed ? (
-                              <ChevronDown className="h-4 w-4 text-gray-600" />
-                            ) : (
-                              <ChevronUp className="h-4 w-4 text-gray-600" />
-                            )}
-                          </button>
-                        </div>
-                        {!isCollapsed && items.map((item) => (
-                <div key={item.id} className={`p-3 md:p-4 border-b border-gray-200 last:border-b-0 ${selectedItems.includes(item.id) ? 'bg-blue-50 border-blue-200' : ''}`}>
-                  <div className="flex items-center justify-between mb-2 md:mb-3">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.includes(item.id)}
-                        onChange={() => handleSelectItem(item.id)}
-                        className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-4 h-4 md:w-5 md:h-5"
+              <DndContext sensors={gameItemsSensors} collisionDetection={closestCenter} onDragEnd={handleGameItemsDragEnd}>
+                <SortableContext items={sortedGameItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    {sortedGameItems.map((item) => (
+                      <SortableGameItemCard
+                        key={item.id}
+                        item={item}
+                        categoryName={categories.find((cat) => cat.id === item.category)?.name ?? 'Uncategorized'}
+                        selectedItems={selectedItems}
+                        onSelectItem={handleSelectItem}
+                        isProcessing={isProcessing}
+                        onEditItem={handleEditItem}
+                        onDuplicateItem={handleDuplicateItem}
+                        onDeleteItem={handleDeleteItem}
                       />
-                      <span className="text-xs text-gray-600">Select</span>
-                    </label>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditItem(item)}
-                        disabled={isProcessing}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200"
-                        title="Edit"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDuplicateItem(item.id)}
-                        disabled={isProcessing}
-                        className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
-                        title="Duplicate Game Item"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteItem(item.id)}
-                        disabled={isProcessing}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                  <div className="flex items-start justify-between mb-2 md:mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-xs font-medium text-gray-900 truncate">{item.name}</h3>
-                      <div className="mt-1 text-xs space-y-1">
-                    <div>
-                      <span className="text-gray-500">Category:</span>
-                      <span className="ml-1 text-gray-900">
-                        {categories.find(cat => cat.id === item.category)?.name}
-                      </span>
-                    </div>
-                    <div>
-                          <span className="text-gray-500">Packages:</span>
-                      <span className="ml-1 text-gray-900">{item.variations?.length || 0}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                      <label className="text-xs text-gray-600">Sort:</label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.sort_order || 0}
-                        onChange={async (e) => {
-                          const newSortOrder = parseInt(e.target.value) || 0;
-                          await updateMenuItem(item.id, { ...item, sort_order: newSortOrder });
-                        }}
-                        className="w-16 md:w-20 px-2 py-1 border border-gray-300 rounded text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                    </div>
-                  
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center space-x-2">
-                      {item.popular && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
-                          Popular
-                        </span>
-                      )}
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        item.available 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {item.available ? 'Available' : 'Unavailable'}
-                      </span>
-                  </div>
-                  </div>
-                </div>
-              ))}
-                      </div>
-                      );
-                    })}
-                    
-                    {/* Uncategorized Items */}
-                    {uncategorizedItems.length > 0 && (() => {
-                      const isCollapsed = collapsedCategories['__uncategorized__'] || false;
-                      return (
-                      <div className="border border-gray-200 rounded-lg overflow-hidden">
-                        <div 
-                          className="bg-gray-100 px-4 py-2 border-b border-gray-200 flex items-center justify-between cursor-pointer hover:bg-gray-200 transition-colors"
-                          onClick={() => setCollapsedCategories(prev => ({ ...prev, '__uncategorized__': !prev['__uncategorized__'] }))}
-                        >
-                          <h3 className="text-xs font-semibold text-gray-900">Uncategorized</h3>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCollapsedCategories(prev => ({ ...prev, '__uncategorized__': !prev['__uncategorized__'] }));
-                            }}
-                            className="p-1 hover:bg-gray-300 rounded transition-colors"
-                          >
-                            {isCollapsed ? (
-                              <ChevronDown className="h-4 w-4 text-gray-600" />
-                            ) : (
-                              <ChevronUp className="h-4 w-4 text-gray-600" />
-                            )}
-                          </button>
-                        </div>
-                        {!isCollapsed && uncategorizedItems.map((item) => (
-                          <div key={item.id} className={`p-4 border-b border-gray-200 last:border-b-0 ${selectedItems.includes(item.id) ? 'bg-blue-50' : ''}`}>
-                            <div className="flex items-center justify-between mb-3">
-                              <label className="flex items-center space-x-2">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedItems.includes(item.id)}
-                                  onChange={() => handleSelectItem(item.id)}
-                                  className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                                />
-                                <span className="text-xs text-gray-600">Select</span>
-                              </label>
-                              <div className="flex items-center space-x-2">
-                                <button
-                                  onClick={() => handleEditItem(item)}
-                                  disabled={isProcessing}
-                                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200"
-                                  title="Edit"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDuplicateItem(item.id)}
-                                  disabled={isProcessing}
-                                  className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
-                                  title="Duplicate Game Item"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteItem(item.id)}
-                                  disabled={isProcessing}
-                                  className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                                  title="Delete"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
-                                <div className="mt-1 text-xs space-y-1">
-                                  <div>
-                                    <span className="text-gray-500">Category:</span>
-                                    <span className="ml-1 text-gray-900">
-                                      {categories.find(cat => cat.id === item.category)?.name}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span className="text-gray-500">Packages:</span>
-                                    <span className="ml-1 text-gray-900">{item.variations?.length || 0}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 ml-2 flex-shrink-0">
-                                <label className="text-xs text-gray-600">Sort:</label>
-                              <input
-                                type="number"
-                                min="0"
-                                value={item.sort_order || 0}
-                                onChange={async (e) => {
-                                  const newSortOrder = parseInt(e.target.value) || 0;
-                                  await updateMenuItem(item.id, { ...item, sort_order: newSortOrder });
-                                }}
-                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                              </div>
-                            </div>
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center space-x-2">
-                      {item.popular && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white">
-                          Popular
-                        </span>
-                      )}
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        item.available 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {item.available ? 'Available' : 'Unavailable'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-                      );
-                    })()}
-                  </div>
-                );
-              })()}
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
         </div>

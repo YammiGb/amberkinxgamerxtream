@@ -496,7 +496,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
   // Resets daily at 12:00 AM Philippine time (Asia/Manila, UTC+8)
   // The invoice number increments each time "Copy Invoice Order" is clicked (forceNew = true)
   // Subsequent calls (like "Order via Messenger") will reuse the same invoice number (forceNew = false)
-  // Uses database (site_settings) to track invoice count with proper locking to prevent race conditions
+  // Uses atomic DB function get_next_invoice_number() to prevent duplicates when orders place concurrently
   const generateInvoiceNumber = async (forceNew: boolean = false): Promise<string> => {
     const { dateString: todayStr, dayOfMonth, month } = getPhilippineDate();
     
@@ -507,107 +507,29 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     }
 
     try {
-      // Get invoice count from database (site_settings table)
-      const countSettingId = 'invoice_count';
-      const dateSettingId = 'invoice_count_date';
-      
-      // Fetch current invoice count and date from database
-      // Use a transaction-like approach: fetch, check, update
-      const { data: countData, error: countError } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('id', countSettingId)
-        .maybeSingle();
-      
-      if (countError) {
-        console.error('Error fetching invoice count:', countError);
-        // Continue with default value
-      }
-      
-      const { data: dateData, error: dateError } = await supabase
-        .from('site_settings')
-        .select('value')
-        .eq('id', dateSettingId)
-        .maybeSingle();
-      
-      if (dateError) {
-        console.error('Error fetching invoice count date:', dateError);
-        // Continue with default value
-      }
-      
-      let currentCount = 0;
-      const lastDate = dateData?.value || null;
-      
-      // Check if we need to reset (new day)
-      if (lastDate !== todayStr) {
-        // New day - reset the count to 0
-        currentCount = 0;
-        
-        // Update both count and date in database atomically
-        const { error: updateCountError } = await supabase
-          .from('site_settings')
-          .upsert({ id: countSettingId, value: '0', type: 'number', description: 'Current invoice count for the day' }, { onConflict: 'id' });
-        
-        if (updateCountError) {
-          console.error('Error updating invoice count:', updateCountError);
-        }
-        
-        const { error: updateDateError } = await supabase
-          .from('site_settings')
-          .upsert({ id: dateSettingId, value: todayStr, type: 'text', description: 'Date of the current invoice count' }, { onConflict: 'id' });
-        
-        if (updateDateError) {
-          console.error('Error updating invoice date:', updateDateError);
-        }
-      } else {
-        // Same day - get current count from database
-        currentCount = countData?.value ? parseInt(countData.value, 10) : 0;
-      }
-      
-      // If forceNew is true (Copy button clicked), always increment the count
-      // This ensures each new order gets a new invoice number
-      if (forceNew) {
-        currentCount += 1;
-        
-        // Update count in database - ensure this completes before returning
-        const { error: updateError } = await supabase
-          .from('site_settings')
-          .upsert({ id: countSettingId, value: currentCount.toString(), type: 'number', description: 'Current invoice count for the day' }, { onConflict: 'id' });
-        
-        if (updateError) {
-          console.error('Error updating invoice count:', updateError);
-          // Still use the incremented count even if update fails
-        }
-      } else {
-        // If forceNew is false and no count exists, start at 1
-        if (currentCount === 0) {
-          currentCount = 1;
-          const { error: updateError } = await supabase
-            .from('site_settings')
-            .upsert({ id: countSettingId, value: currentCount.toString(), type: 'number', description: 'Current invoice count for the day' }, { onConflict: 'id' });
-          
-          if (updateError) {
-            console.error('Error updating invoice count:', updateError);
-          }
-        }
+      // Atomic RPC: increments counter in DB with advisory lock - no race conditions
+      const { data: orderNumber, error } = await supabase.rpc('get_next_invoice_number', { p_date: todayStr });
+
+      if (error) {
+        console.error('Error generating invoice number:', error);
+        const { dayOfMonth: d, month: m } = getPhilippineDate();
+        return `AKGXT${m}M${d}D1`;
       }
 
-      const orderNumber = currentCount;
+      const num = typeof orderNumber === 'number' ? orderNumber : 1;
 
       // Format: AKGXT{month}M{day}D{orderNumber}
-      // Example: AKGXT2M17D1 (1st order on Feb 17), AKGXT2M17D2 (2nd order on Feb 17), etc.
-      const invoiceNumber = `AKGXT${month}M${dayOfMonth}D${orderNumber}`;
+      const invoiceNumber = `AKGXT${month}M${dayOfMonth}D${num}`;
       
       setGeneratedInvoiceNumber(invoiceNumber);
       setInvoiceNumberDate(todayStr);
-      currentInvoiceCountRef.current = { count: orderNumber, date: todayStr };
+      currentInvoiceCountRef.current = { count: num, date: todayStr };
       
       return invoiceNumber;
     } catch (error) {
       console.error('Error generating invoice number:', error);
-      // Fallback to a simple format if there's an error
-      const { dayOfMonth, month } = getPhilippineDate();
-      return `AKGXT${month}M${dayOfMonth}D1`;
+      const { dayOfMonth: d, month: m } = getPhilippineDate();
+      return `AKGXT${m}M${d}D1`;
     }
   };
 

@@ -190,6 +190,56 @@ export const useMenu = () => {
     }
   };
 
+  /** Update one item's sort_order and shift others, then normalize to 0,1,2,... so there are no gaps. */
+  const updateMenuItemSortWithShift = async (itemId: string, newSortOrder: number) => {
+    const item = menuItems.find((i) => i.id === itemId);
+    if (!item) return;
+    const currentSort = item.sort_order ?? 0;
+    if (newSortOrder === currentSort) return;
+
+    const others = menuItems.filter(
+      (i) => i.id !== itemId && (i.sort_order ?? 0) >= newSortOrder
+    );
+    const sorted = [...others].sort((a, b) => (b.sort_order ?? 0) - (a.sort_order ?? 0));
+
+    try {
+      for (const other of sorted) {
+        const nextSort = (other.sort_order ?? 0) + 1;
+        const { error } = await supabase
+          .from('menu_items')
+          .update({ sort_order: nextSort })
+          .eq('id', other.id);
+        if (error) throw error;
+      }
+      const { error } = await supabase
+        .from('menu_items')
+        .update({ sort_order: newSortOrder })
+        .eq('id', itemId);
+      if (error) throw error;
+
+      // Normalize so sort_order is 1, 2, 3, ... with no gaps (no zero)
+      const { data: all } = await supabase
+        .from('menu_items')
+        .select('id, sort_order')
+        .order('sort_order', { ascending: true });
+      const list = all || [];
+      for (let i = 0; i < list.length; i++) {
+        const want = i + 1;
+        const row = list[i] as { id: string; sort_order: number };
+        if (row.sort_order === want) continue;
+        const { error: normError } = await supabase
+          .from('menu_items')
+          .update({ sort_order: want })
+          .eq('id', row.id);
+        if (normError) throw normError;
+      }
+      await fetchMenuItems();
+    } catch (err) {
+      console.error('Error updating menu item sort:', err);
+      throw err;
+    }
+  };
+
   const deleteMenuItem = async (id: string) => {
     try {
       const { error } = await supabase
@@ -202,6 +252,32 @@ export const useMenu = () => {
       await fetchMenuItems();
     } catch (err) {
       console.error('Error deleting menu item:', err);
+      throw err;
+    }
+  };
+
+  /** Reorder menu items by id list; assigns sort_order 1, 2, 3, ... Optimistic update so UI reflects new order immediately. */
+  const reorderMenuItems = async (orderedIds: string[]) => {
+    if (orderedIds.length === 0) return;
+    const idSet = new Set(orderedIds);
+    const reordered = orderedIds
+      .map((id) => menuItems.find((m) => m.id === id))
+      .filter((m): m is MenuItem => m != null);
+    const rest = menuItems.filter((m) => !idSet.has(m.id));
+    const withNewSort = reordered.map((item, i) => ({ ...item, sort_order: i + 1 }));
+    const newList = [...withNewSort, ...rest];
+    setMenuItems(newList);
+    try {
+      for (let i = 0; i < orderedIds.length; i++) {
+        const { error } = await supabase
+          .from('menu_items')
+          .update({ sort_order: i + 1 })
+          .eq('id', orderedIds[i]);
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error('Error reordering menu items:', err);
+      await fetchMenuItems();
       throw err;
     }
   };
@@ -259,6 +335,8 @@ export const useMenu = () => {
     error,
     addMenuItem,
     updateMenuItem,
+    updateMenuItemSortWithShift,
+    reorderMenuItems,
     deleteMenuItem,
     duplicateMenuItem,
     refetch: fetchMenuItems

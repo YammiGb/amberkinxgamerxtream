@@ -1,11 +1,56 @@
 import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft, CreditCard, Upload, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, CreditCard, Upload, ChevronDown, ChevronUp, ToggleLeft, ToggleRight, AlertTriangle, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { usePaymentMethods, PaymentMethod, AdminPaymentGroup } from '../hooks/usePaymentMethods';
 import { supabase } from '../lib/supabase';
 import ImageUpload from './ImageUpload';
 
 interface PaymentMethodManagerProps {
   onBack: () => void;
+}
+
+/** Sortable wrapper for a payment method card. */
+function SortablePaymentMethodCard({
+  method,
+  children,
+}: {
+  method: PaymentMethod;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, transform, transition, isDragging, attributes, listeners } = useSortable({ id: method.uuid_id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-3 border border-gray-200 rounded-lg transition-colors duration-200 ${isDragging ? 'opacity-60 shadow-lg bg-white' : 'hover:bg-gray-50'}`}
+    >
+      <div className="flex items-start gap-2">
+        <div
+          {...attributes}
+          {...listeners}
+          className="p-1.5 touch-none cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded flex-shrink-0 mt-0.5"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Helper component for payment method image with fallback
@@ -32,7 +77,9 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
     paymentMethods, 
     adminGroups,
     addPaymentMethod, 
-    updatePaymentMethod, 
+    updatePaymentMethod,
+    updatePaymentMethodSortWithShift, 
+    reorderPaymentMethods,
     deletePaymentMethod, 
     addAdminGroup,
     updateAdminGroup,
@@ -40,6 +87,12 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
     refetchAll,
     refetchAdminGroups
   } = usePaymentMethods();
+
+  const paymentMethodsSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
   
   // Fetch all payment methods (not filtered by active groups) for admin view
   const [allPaymentMethods, setAllPaymentMethods] = React.useState<PaymentMethod[]>([]);
@@ -242,6 +295,9 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
 
     try {
       if (editingMethod) {
+        if (formData.sort_order !== undefined) {
+          await updatePaymentMethodSortWithShift(editingMethod.uuid_id, formData.sort_order);
+        }
         await updatePaymentMethod(editingMethod.uuid_id, formData);
       } else {
         await addPaymentMethod(formData);
@@ -281,6 +337,33 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
       .replace(/\s+/g, '-')
       .replace(/-+/g, '-')
       .trim();
+  };
+
+  const handlePaymentMethodsDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const draggedUuid = active.id as string;
+    const overUuid = over.id as string;
+    const groupKey = Object.keys(groupedPaymentMethods).find(
+      (adminName) => groupedPaymentMethods[adminName].some((m) => m.uuid_id === draggedUuid)
+    );
+    if (!groupKey) return;
+    const methods = groupedPaymentMethods[groupKey];
+    const oldIndex = methods.findIndex((m) => m.uuid_id === draggedUuid);
+    const newIndex = methods.findIndex((m) => m.uuid_id === overUuid);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newGroupOrder = arrayMove([...methods], oldIndex, newIndex);
+    const fullOrdered: PaymentMethod[] = [];
+    adminGroups.forEach((group) => {
+      const list = group.admin_name === groupKey ? newGroupOrder : (groupedPaymentMethods[group.admin_name] || []);
+      list.forEach((m) => fullOrdered.push(m));
+    });
+    if (groupedPaymentMethods['Unassigned']?.length) {
+      groupedPaymentMethods['Unassigned'].forEach((m) => fullOrdered.push(m));
+    }
+    const withSort = fullOrdered.map((m, i) => ({ ...m, sort_order: i + 1 }));
+    setAllPaymentMethods(withSort);
+    reorderPaymentMethods(withSort).catch(() => fetchAllPaymentMethods());
   };
 
   const handleNameChange = (name: string) => {
@@ -488,6 +571,7 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
+        <DndContext sensors={paymentMethodsSensors} collisionDetection={closestCenter} onDragEnd={handlePaymentMethodsDragEnd}>
         {/* Add Admin Group Section */}
         <div className="bg-white rounded-xl shadow-sm p-4 md:p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -620,11 +704,9 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
                             </button>
                           </div>
                         ) : (
-                          methods.map((method) => (
-                            <div
-                              key={method.id}
-                              className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                            >
+                          <SortableContext items={methods.map((m) => m.uuid_id)} strategy={verticalListSortingStrategy}>
+                          {methods.map((method) => (
+                            <SortablePaymentMethodCard key={method.uuid_id} method={method}>
                               {/* Top Row: Status on left, Actions on right */}
                               <div className="flex items-center justify-between mb-3">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -679,8 +761,9 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
                                   <p className="text-xs text-gray-400">ID: {method.id} • Order: #{method.sort_order}</p>
                                 </div>
                               </div>
-                            </div>
-                          ))
+                            </SortablePaymentMethodCard>
+                          ))}
+                          </SortableContext>
                         )}
                       </div>
                     )}
@@ -761,6 +844,7 @@ const PaymentMethodManager: React.FC<PaymentMethodManagerProps> = ({ onBack }) =
             </div>
           </div>
         )}
+        </DndContext>
       </div>
 
       {/* Delete Confirmation Modal */}

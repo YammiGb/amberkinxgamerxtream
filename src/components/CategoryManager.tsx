@@ -1,13 +1,86 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, ArrowLeft } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, Edit, Trash2, Save, X, ArrowLeft, GripVertical } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useCategories, Category } from '../hooks/useCategories';
+
+interface SortableCategoryCardProps {
+  category: Category;
+  onEdit: (category: Category) => void;
+  onDelete: (id: string) => void;
+}
+
+function SortableCategoryCard({ category, onEdit, onDelete }: SortableCategoryCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: category.id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`p-4 border border-gray-200 rounded-lg transition-colors duration-200 ${isDragging ? 'opacity-60 bg-white shadow-lg z-10' : 'hover:bg-gray-50'}`}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${category.active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          {category.active ? 'Active' : 'Inactive'}
+        </span>
+        <div className="flex items-center space-x-2">
+          <div
+            className="p-1.5 cursor-grab active:cursor-grabbing touch-none rounded hover:bg-gray-100"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4 text-gray-400" aria-hidden />
+          </div>
+          <button onClick={() => onEdit(category)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200">
+            <Edit className="h-4 w-4" />
+          </button>
+          <button onClick={() => onDelete(category.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200">
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div className="flex items-center space-x-4">
+        <span className="text-xs text-gray-500">#{category.sort_order}</span>
+        <div>
+          <h3 className="font-medium text-black text-xs">{category.name}</h3>
+          <p className="text-xs text-gray-500">ID: {category.id}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface CategoryManagerProps {
   onBack: () => void;
 }
 
 const CategoryManager: React.FC<CategoryManagerProps> = ({ onBack }) => {
-  const { categories, addCategory, updateCategory, deleteCategory, reorderCategories } = useCategories();
+  const { categories, addCategory, updateCategory, updateCategorySortWithShift, deleteCategory, reorderCategoriesByIds } = useCategories();
+  const sortedCategories = useMemo(() => [...categories].sort((a, b) => (a.sort_order || 1) - (b.sort_order || 1)), [categories]);
+  const categorySensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+  const handleCategoriesDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = sortedCategories.findIndex((c) => c.id === active.id);
+    const newIndex = sortedCategories.findIndex((c) => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(sortedCategories.map((c) => c.id), oldIndex, newIndex);
+    reorderCategoriesByIds(newOrder);
+  };
   const [currentView, setCurrentView] = useState<'list' | 'add' | 'edit'>('list');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({
@@ -64,6 +137,9 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({ onBack }) => {
 
     try {
       if (editingCategory) {
+        if (formData.sort_order !== undefined) {
+          await updateCategorySortWithShift(editingCategory.id, formData.sort_order);
+        }
         await updateCategory(editingCategory.id, formData as any);
       } else {
         await addCategory(formData as any);
@@ -244,50 +320,20 @@ const CategoryManager: React.FC<CategoryManagerProps> = ({ onBack }) => {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {categories.map((category) => (
-                  <div
-                    key={category.id}
-                    className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
-                  >
-                    {/* Top Row: Status on left, Actions on right */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        category.active 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {category.active ? 'Active' : 'Inactive'}
-                      </span>
-                      
-                      <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => handleEditCategory(category)}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors duration-200"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDeleteCategory(category.id)}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                      </div>
-                    </div>
-                    
-                    {/* Bottom Row: Category Info */}
-                    <div className="flex items-center space-x-4">
-                      <span className="text-xs text-gray-500">#{category.sort_order}</span>
-                      <div>
-                        <h3 className="font-medium text-black text-xs">{category.name}</h3>
-                        <p className="text-xs text-gray-500">ID: {category.id}</p>
-                      </div>
-                    </div>
+              <DndContext sensors={categorySensors} collisionDetection={closestCenter} onDragEnd={handleCategoriesDragEnd}>
+                <SortableContext items={sortedCategories.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-3">
+                    {sortedCategories.map((category) => (
+                      <SortableCategoryCard
+                        key={category.id}
+                        category={category}
+                        onEdit={handleEditCategory}
+                        onDelete={handleDeleteCategory}
+                      />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
             )}
           </div>
         </div>

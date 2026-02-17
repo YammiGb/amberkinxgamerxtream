@@ -104,6 +104,41 @@ export const useCategories = () => {
     }
   };
 
+  /** Update one category's sort_order and shift others, then normalize to 0,1,2,... so there are no gaps. */
+  const updateCategorySortWithShift = async (id: string, newSortOrder: number) => {
+    const category = categories.find((c) => c.id === id);
+    if (!category) return;
+    const currentSort = category.sort_order ?? 0;
+    if (newSortOrder === currentSort) return;
+
+    const others = categories.filter((c) => c.id !== id && (c.sort_order ?? 0) >= newSortOrder);
+    const sorted = [...others].sort((a, b) => (b.sort_order ?? 0) - (a.sort_order ?? 0));
+
+    try {
+      for (const other of sorted) {
+        const nextSort = (other.sort_order ?? 0) + 1;
+        const { error } = await supabase.from('categories').update({ sort_order: nextSort }).eq('id', other.id);
+        if (error) throw error;
+      }
+      const { error } = await supabase.from('categories').update({ sort_order: newSortOrder }).eq('id', id);
+      if (error) throw error;
+
+      const { data: all } = await supabase.from('categories').select('id, sort_order').order('sort_order', { ascending: true });
+      const list = all || [];
+      for (let i = 0; i < list.length; i++) {
+        const want = i + 1;
+        const row = list[i] as { id: string; sort_order: number };
+        if (row.sort_order === want) continue;
+        const { error: normError } = await supabase.from('categories').update({ sort_order: want }).eq('id', row.id);
+        if (normError) throw normError;
+      }
+      await fetchCategories();
+    } catch (err) {
+      console.error('Error updating category sort:', err);
+      throw err;
+    }
+  };
+
   const deleteCategory = async (id: string) => {
     try {
       // Check if category has menu items
@@ -154,6 +189,31 @@ export const useCategories = () => {
     }
   };
 
+  /** Reorder by id list; optimistic update so UI updates immediately. */
+  const reorderCategoriesByIds = async (orderedIds: string[]) => {
+    if (orderedIds.length === 0) return;
+    const idSet = new Set(orderedIds);
+    const reordered = orderedIds
+      .map((id) => categories.find((c) => c.id === id))
+      .filter((c): c is Category => c != null);
+    const rest = categories.filter((c) => !idSet.has(c.id));
+    const withNewSort = reordered.map((cat, i) => ({ ...cat, sort_order: i + 1 }));
+    setCategories([...withNewSort, ...rest]);
+    try {
+      for (let i = 0; i < orderedIds.length; i++) {
+        const { error } = await supabase
+          .from('categories')
+          .update({ sort_order: i + 1 })
+          .eq('id', orderedIds[i]);
+        if (error) throw error;
+      }
+    } catch (err) {
+      console.error('Error reordering categories:', err);
+      await fetchCategories();
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchCategories();
   }, []);
@@ -164,8 +224,10 @@ export const useCategories = () => {
     error,
     addCategory,
     updateCategory,
+    updateCategorySortWithShift,
     deleteCategory,
     reorderCategories,
+    reorderCategoriesByIds,
     refetch: fetchCategories
   };
 };

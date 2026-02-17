@@ -233,6 +233,52 @@ export const usePaymentMethods = () => {
     }
   };
 
+  /** Update one payment method's sort_order and shift others so there are no duplicates. Fetches full list so it works in admin view. */
+  const updatePaymentMethodSortWithShift = async (uuidId: string, newSortOrder: number) => {
+    const { data: all } = await supabase.from('payment_methods').select('uuid_id, sort_order').order('sort_order', { ascending: true });
+    const list = all || [];
+    const method = list.find((m: { uuid_id: string; sort_order: number }) => m.uuid_id === uuidId);
+    if (!method) return;
+    const currentSort = method.sort_order ?? 0;
+    if (newSortOrder === currentSort) return;
+
+    const others = list.filter((m: { uuid_id: string; sort_order: number }) => m.uuid_id !== uuidId && (m.sort_order ?? 0) >= newSortOrder);
+    const sorted = [...others].sort((a, b) => (b.sort_order ?? 0) - (a.sort_order ?? 0));
+
+    try {
+      for (const other of sorted) {
+        const nextSort = (other.sort_order ?? 0) + 1;
+        const { error } = await supabase
+          .from('payment_methods')
+          .update({ sort_order: nextSort })
+          .eq('uuid_id', other.uuid_id);
+        if (error) throw error;
+      }
+      const { error } = await supabase
+        .from('payment_methods')
+        .update({ sort_order: newSortOrder })
+        .eq('uuid_id', uuidId);
+      if (error) throw error;
+
+      const { data: all } = await supabase.from('payment_methods').select('uuid_id, sort_order').order('sort_order', { ascending: true });
+      const list = all || [];
+      for (let i = 0; i < list.length; i++) {
+        const want = i + 1;
+        const row = list[i] as { uuid_id: string; sort_order: number };
+        if (row.sort_order === want) continue;
+        const { error: normError } = await supabase
+          .from('payment_methods')
+          .update({ sort_order: want })
+          .eq('uuid_id', row.uuid_id);
+        if (normError) throw normError;
+      }
+      await fetchAllPaymentMethods();
+    } catch (err) {
+      console.error('Error updating payment method sort:', err);
+      throw err;
+    }
+  };
+
   const deletePaymentMethod = async (uuidId: string) => {
     try {
       const { error: deleteError } = await supabase
@@ -282,6 +328,7 @@ export const usePaymentMethods = () => {
     error,
     addPaymentMethod,
     updatePaymentMethod,
+    updatePaymentMethodSortWithShift,
     deletePaymentMethod,
     reorderPaymentMethods,
     addAdminGroup,
