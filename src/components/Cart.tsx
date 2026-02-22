@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Plus, Minus, ArrowLeft, Check, X } from 'lucide-react';
+import { Trash2, ArrowLeft, Check, X } from 'lucide-react';
 import { CartItem } from '../types';
 
 interface CartProps {
@@ -240,14 +240,8 @@ const Cart: React.FC<CartProps> = ({
               </div>
 
               <div className="mt-4 flex items-center justify-between flex-wrap gap-4" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center space-x-2 glass rounded-full p-0.5 border border-cafe-primary/30">
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                    className="p-1 hover:bg-cafe-primary/20 rounded-full transition-colors duration-200"
-                  >
-                    <Minus className="h-3 w-3 text-cafe-primary" />
-                  </button>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-medium text-cafe-textMuted whitespace-nowrap">Quantity</label>
                   <input
                     type="number"
                     min={1}
@@ -261,15 +255,8 @@ const Cart: React.FC<CartProps> = ({
                         e.currentTarget.blur();
                       }
                     }}
-                    className="font-semibold text-cafe-text w-10 text-center text-sm bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className="font-semibold text-cafe-text w-14 px-2 py-1.5 rounded-lg bg-white/10 border border-cafe-primary/30 focus:outline-none focus:ring-2 focus:ring-cafe-primary/50 focus:border-cafe-primary text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="p-1 hover:bg-cafe-primary/20 rounded-full transition-colors duration-200"
-                  >
-                    <Plus className="h-3 w-3 text-cafe-primary" />
-                  </button>
                 </div>
 
                 <div className="flex items-center ml-auto">
