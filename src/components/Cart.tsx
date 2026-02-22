@@ -23,8 +23,17 @@ const Cart: React.FC<CartProps> = ({
 }) => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [editingQuantity, setEditingQuantity] = useState<{ id: string; value: string } | null>(null);
   const cartScrollRef = useRef<HTMLDivElement>(null);
   const previousCartItemsLengthRef = useRef<number>(cartItems.length);
+
+  const commitQuantity = (itemId: string, raw: string) => {
+    setEditingQuantity(null);
+    const n = parseInt(raw.trim(), 10);
+    if (!Number.isNaN(n) && n >= 1) {
+      updateQuantity(itemId, n);
+    }
+  };
 
   // Restore scroll position when cart opens (unless coming from item added)
   useEffect(() => {
@@ -233,13 +242,29 @@ const Cart: React.FC<CartProps> = ({
               <div className="mt-4 flex items-center justify-between flex-wrap gap-4" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center space-x-2 glass rounded-full p-0.5 border border-cafe-primary/30">
                   <button
-                    onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                    type="button"
+                    onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                     className="p-1 hover:bg-cafe-primary/20 rounded-full transition-colors duration-200"
                   >
                     <Minus className="h-3 w-3 text-cafe-primary" />
                   </button>
-                  <span className="font-semibold text-cafe-text min-w-[24px] text-center text-sm">{item.quantity}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={editingQuantity?.id === item.id ? editingQuantity.value : item.quantity}
+                    onChange={(e) => setEditingQuantity({ id: item.id, value: e.target.value })}
+                    onFocus={() => setEditingQuantity({ id: item.id, value: String(item.quantity) })}
+                    onBlur={() => commitQuantity(item.id, editingQuantity?.id === item.id ? editingQuantity.value : String(item.quantity))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    className="font-semibold text-cafe-text w-10 text-center text-sm bg-transparent border-none focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
                   <button
+                    type="button"
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
                     className="p-1 hover:bg-cafe-primary/20 rounded-full transition-colors duration-200"
                   >
