@@ -516,7 +516,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
         return `AKGXT${m}M${d}D1`;
       }
 
-      const num = typeof orderNumber === 'number' ? orderNumber : 1;
+      // Supabase may return the function result as a number or string; parse robustly
+      let num: number;
+      if (typeof orderNumber === 'number') {
+        num = orderNumber;
+      } else if (typeof orderNumber === 'string') {
+        const parsed = parseInt(orderNumber, 10);
+        num = Number.isNaN(parsed) ? 1 : parsed;
+      } else {
+        num = 1;
+      }
 
       // Format: AKGXT{month}M{day}D{orderNumber}
       const invoiceNumber = `AKGXT${month}M${dayOfMonth}D${num}`;
@@ -546,6 +555,20 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
     return r;
   };
 
+  /** Distribute cart items for a game across accounts (Account 1, 2, 3, ...).
+   *  Packages are assigned in cart order, round‑robin, so with 2 packages and 2 accounts
+   *  the first package goes to Account 1 and the second to Account 2.
+   */
+  const assignItemsToAccounts = (items: CartItem[], totalAccounts: number): CartItem[][] => {
+    if (totalAccounts <= 0) return [];
+    const perAccount: CartItem[][] = Array.from({ length: totalAccounts }, () => []);
+    items.forEach((cItem, idx) => {
+      const accIdx = totalAccounts === 1 ? 0 : idx % totalAccounts;
+      perAccount[accIdx].push(cItem);
+    });
+    return perAccount;
+  };
+
   // Generate the order message text
   const generateOrderMessage = async (forceNewInvoice: boolean = false): Promise<string> => {
     // Generate invoice number first
@@ -569,24 +592,33 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           if (extraCount === 0) return;
           const totalAccounts = 1 + extraCount;
           const cartItemsForGame = cartItems.filter(c => getOriginalMenuItemId(c.id) === originalId);
+          const itemsPerAccount = assignItemsToAccounts(cartItemsForGame, totalAccounts);
+
           lines.push(`${toBold('GAME')}: ${item.name}`);
+
           for (let accIdx = 0; accIdx < totalAccounts; accIdx++) {
             const fields = (item.customFields ?? []).map(field => {
               const valueKey = accIdx === 0 ? `${originalId}_${field.key}` : `${originalId}_acc${accIdx}_${field.key}`;
               const value = customFieldValues[valueKey] || '';
               return value ? { label: field.label, value } : null;
             }).filter(Boolean) as Array<{ label: string, value: string }>;
-            if (fields.length > 0) {
-              if (totalAccounts > 1) lines.push(`${toBold(`Account ${accIdx + 1}`)}:`);
-              fields.forEach(f => lines.push(`  ${toBold(f.label)}: ${f.value}`));
+
+            const accountItems = itemsPerAccount[accIdx] ?? [];
+            if (fields.length === 0 && accountItems.length === 0) continue;
+
+            if (totalAccounts > 1) {
+              lines.push(`${toBold(`Account ${accIdx + 1}`)}:`);
             }
+
+            fields.forEach(f => lines.push(`  ${toBold(f.label)}: ${f.value}`));
+
+            accountItems.forEach(cItem => {
+              let orderLine = `  ${toBold('ORDER')}: ${cItem.selectedVariation?.name || cItem.name}`;
+              if (cItem.quantity > 1) orderLine += ` x${cItem.quantity}`;
+              orderLine += ` - ₱${cItem.totalPrice * cItem.quantity}`;
+              lines.push(orderLine);
+            });
           }
-          cartItemsForGame.forEach(cItem => {
-            let orderLine = `${toBold('ORDER')}: ${cItem.selectedVariation?.name || cItem.name}`;
-            if (cItem.quantity > 1) orderLine += ` x${cItem.quantity}`;
-            orderLine += ` - ₱${cItem.totalPrice * cItem.quantity}`;
-            lines.push(orderLine);
-          });
         });
         const gamesWithExtraIds = new Set(
           itemsWithCustomFields.filter(i => (extraAccountCount[getOriginalMenuItemId(i.id)] ?? 0) > 0).map(i => getOriginalMenuItemId(i.id))
@@ -942,24 +974,33 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
           if (extraCount === 0) return;
           const totalAccounts = 1 + extraCount;
           const cartItemsForGame = cartItems.filter(c => getOriginalMenuItemId(c.id) === originalId);
+          const itemsPerAccount = assignItemsToAccounts(cartItemsForGame, totalAccounts);
+
           lines.push(`${toBold('GAME')}: ${item.name}`);
+
           for (let accIdx = 0; accIdx < totalAccounts; accIdx++) {
             const fields = (item.customFields ?? []).map(field => {
               const valueKey = accIdx === 0 ? `${originalId}_${field.key}` : `${originalId}_acc${accIdx}_${field.key}`;
               const value = customFieldValues[valueKey] || '';
               return value ? { label: field.label, value } : null;
             }).filter(Boolean) as Array<{ label: string, value: string }>;
-            if (fields.length > 0) {
-              if (totalAccounts > 1) lines.push(`${toBold(`Account ${accIdx + 1}`)}:`);
-              fields.forEach(f => lines.push(`  ${toBold(f.label)}: ${f.value}`));
+
+            const accountItems = itemsPerAccount[accIdx] ?? [];
+            if (fields.length === 0 && accountItems.length === 0) continue;
+
+            if (totalAccounts > 1) {
+              lines.push(`${toBold(`Account ${accIdx + 1}`)}:`);
             }
+
+            fields.forEach(f => lines.push(`  ${toBold(f.label)}: ${f.value}`));
+
+            accountItems.forEach(cItem => {
+              let orderLine = `  ${toBold('ORDER')}: ${cItem.selectedVariation?.name || cItem.name}`;
+              if (cItem.quantity > 1) orderLine += ` x${cItem.quantity}`;
+              orderLine += ` - ₱${cItem.totalPrice * cItem.quantity}`;
+              lines.push(orderLine);
+            });
           }
-          cartItemsForGame.forEach(cItem => {
-            let orderLine = `${toBold('ORDER')}: ${cItem.selectedVariation?.name || cItem.name}`;
-            if (cItem.quantity > 1) orderLine += ` x${cItem.quantity}`;
-            orderLine += ` - ₱${cItem.totalPrice * cItem.quantity}`;
-            lines.push(orderLine);
-          });
         });
         const gamesWithExtraIds = new Set(
           itemsWithCustomFields.filter(i => (extraAccountCount[getOriginalMenuItemId(i.id)] ?? 0) > 0).map(i => getOriginalMenuItemId(i.id))
@@ -1293,12 +1334,16 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
       
       if (hasExtraAccounts && hasAnyCustomFields) {
         // Multiple accounts via "Add [field]" - use array format
+        // Distribute packages for each game across accounts (Account 1, 2, 3, ...)
         const accountsData: Array<{ game: string; package: string; fields: Record<string, string> }> = [];
         itemsWithCustomFields.forEach((item) => {
           const originalId = getOriginalMenuItemId(item.id);
           const extraCount = extraAccountCount[originalId] ?? 0;
+          if (extraCount === 0) return;
+
           const totalAccounts = 1 + extraCount;
-          const packageName = item.selectedVariation?.name || item.name;
+          const cartItemsForGame = cartItems.filter(c => getOriginalMenuItemId(c.id) === originalId);
+          const itemsPerAccount = assignItemsToAccounts(cartItemsForGame, totalAccounts);
           
           for (let accIdx = 0; accIdx < totalAccounts; accIdx++) {
             const fields: Record<string, string> = {};
@@ -1311,10 +1356,17 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 fields[field.label] = value;
               }
             });
-            if (Object.keys(fields).length > 0) {
+
+            const accountItems = itemsPerAccount[accIdx] ?? [];
+            const packageNames = accountItems.map(ci => ci.selectedVariation?.name || ci.name);
+            const packageLabel = packageNames.length > 0
+              ? packageNames.join(', ')
+              : (item.selectedVariation?.name || item.name);
+
+            if (Object.keys(fields).length > 0 || packageNames.length > 0) {
               accountsData.push({
                 game: item.name,
-                package: packageName,
+                package: packageLabel,
                 fields
               });
             }
@@ -1571,6 +1623,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     const originalId = getOriginalMenuItemId(item.id);
                     const extraCount = useMultipleAccounts ? (extraAccountCount[originalId] ?? 0) : 0;
                     const totalAccounts = 1 + extraCount;
+                    const cartItemsForGame = cartItems.filter(c => getOriginalMenuItemId(c.id) === originalId);
+                    const itemsPerAccount = useMultipleAccounts && totalAccounts > 0
+                      ? assignItemsToAccounts(cartItemsForGame, totalAccounts)
+                      : [cartItemsForGame];
                     return (
                     <div key={item.id} className="space-y-4 pb-6 border-b border-cafe-primary/20 last:border-b-0 last:pb-0">
                       <div className="mb-4 flex items-center gap-4">
@@ -1598,7 +1654,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                           <p className="text-xs text-cafe-textMuted">Please provide the following information for this game</p>
                         </div>
                       </div>
-                      {Array.from({ length: totalAccounts }, (_, accIdx) => (
+                      {Array.from({ length: totalAccounts }, (_, accIdx) => {
+                        const accountItems = itemsPerAccount[accIdx] ?? [];
+                        const packageNames = accountItems.map(ci => ci.selectedVariation?.name || ci.name);
+                        return (
                         <div key={`${originalId}_acc${accIdx}`} className="space-y-4">
                           {accIdx > 0 && (
                             <div className="flex items-center justify-between gap-2">
@@ -1612,6 +1671,11 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                                 <Trash2 className="h-4 w-4" />
                               </button>
                             </div>
+                          )}
+                          {packageNames.length > 0 && (
+                            <p className="text-xs text-cafe-textMuted">
+                              Packages for this account: {packageNames.join(', ')}
+                            </p>
                           )}
                           {item.customFields?.map((field, fieldIndex) => {
                             const valueKey = accIdx === 0
@@ -1637,7 +1701,8 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                             );
                           })}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     );
                   })
