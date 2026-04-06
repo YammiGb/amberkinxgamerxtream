@@ -1823,7 +1823,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                         )}
                       </button>
                     </div>
-                    <p className="font-mono text-cafe-text font-medium text-sm">{selectedPaymentMethod.account_number}</p>
+                    <p className="font-mono text-lg font-bold text-white tracking-wider animate-attention">{selectedPaymentMethod.account_number}</p>
                   </div>
                   
                   {/* Account Name with Copy Button */}
@@ -1842,7 +1842,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                         )}
                       </button>
                     </div>
-                    <p className="text-cafe-text font-medium text-sm">{selectedPaymentMethod.account_name}</p>
+                    <p 
+                      className={`font-bold text-white whitespace-nowrap overflow-hidden text-ellipsis animate-attention ${
+                        selectedPaymentMethod.account_name.length > 22 ? 'text-sm' : 
+                        selectedPaymentMethod.account_name.length > 17 ? 'text-base' : 'text-lg'
+                      }`}
+                      title={selectedPaymentMethod.account_name}
+                    >
+                      {selectedPaymentMethod.account_name}
+                    </p>
                   </div>
                 </div>
                 

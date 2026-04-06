@@ -229,3 +229,23 @@ img {
   pointer-events: none;
   z-index: 0;
 }
+
+/* Attention grabbing animation */
+@keyframes highlight-pulse {
+  0%, 100% {
+    transform: scale(1);
+    color: white;
+    text-shadow: 0 0 0px rgba(255, 255, 255, 0);
+  }
+  50% {
+    transform: scale(1.02);
+    color: #F5F0E6;
+    text-shadow: 0 0 10px rgba(245, 240, 230, 0.6);
+  }
+}
+
+.animate-attention {
+  animation: highlight-pulse 2s infinite ease-in-out;
+  display: inline-block;
+  will-change: transform;
+}
