@@ -1853,44 +1853,6 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                     </p>
                   </div>
                 </div>
-                
-                {/* Other Option */}
-                <div>
-                  <h3 className="font-medium text-cafe-text text-center">Other Option</h3>
-                </div>
-                
-                {/* Download QR Button and QR Image */}
-                {selectedPaymentMethod.qr_code_url ? (
-                <div className="flex flex-col items-center gap-3">
-                  {!isMessengerBrowser && (
-                    <button
-                      onClick={() => handleDownloadQRCode(selectedPaymentMethod.qr_code_url, selectedPaymentMethod.name)}
-                      className="px-3 py-1.5 glass-strong rounded-lg hover:bg-cafe-primary/20 transition-colors duration-200 text-sm font-medium text-cafe-text flex items-center gap-2"
-                      title="Download QR code"
-                    >
-                      <Download className="h-4 w-4" />
-                      <span>Download QR</span>
-                    </button>
-                  )}
-                  {isMessengerBrowser && (
-                    <p className="text-xs text-cafe-textMuted text-center">Long-press the QR code to save</p>
-                  )}
-                  <img 
-                    src={selectedPaymentMethod.qr_code_url} 
-                    alt={`${selectedPaymentMethod.name} QR Code`}
-                    className="w-32 h-32 rounded-lg border-2 border-cafe-primary/30 shadow-sm"
-                    onError={(e) => {
-                      e.currentTarget.src = 'https://images.pexels.com/photos/8867482/pexels-photo-8867482.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop';
-                    }}
-                  />
-                </div>
-                ) : (
-                  <div className="flex flex-col items-center gap-3">
-                    <div className="w-32 h-32 rounded-lg border-2 border-cafe-primary/30 shadow-sm bg-cafe-darkCard flex items-center justify-center">
-                      <p className="text-xs text-cafe-textMuted text-center">No QR Code Available</p>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

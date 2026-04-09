@@ -6,7 +6,7 @@ import { useSiteSettings } from '../hooks/useSiteSettings';
 import { supabase } from '../lib/supabase';
 
 const OrderManager: React.FC = () => {
-  const { orders, loading, fetchOrders, updateOrderStatus, fetchOrderById } = useOrders();
+  const { orders, loading, totalCount, currentPage, setCurrentPage, fetchOrders, updateOrderStatus, fetchOrderById } = useOrders();
   const { siteSettings } = useSiteSettings();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,8 +21,8 @@ const OrderManager: React.FC = () => {
   const orderOption = siteSettings?.order_option || 'order_via_messenger';
 
   useEffect(() => {
-    fetchOrders(100); // Limit to 100 most recent orders
-  }, []);
+    fetchOrders(1, 20, { orderOption: orderFilter });
+  }, [orderFilter]);
 
   // Fetch notification volume from settings
   useEffect(() => {
@@ -248,11 +248,7 @@ const OrderManager: React.FC = () => {
     );
   }
 
-  // Filter orders based on selected filter
-  const filteredOrders = orders.filter(order => {
-    const orderOption = order.order_option || 'place_order';
-    return orderOption === orderFilter;
-  });
+  // Orders are pre-filtered by the backend hook
 
   return (
     <div className="space-y-3 md:space-y-6">
@@ -283,7 +279,7 @@ const OrderManager: React.FC = () => {
         
         {/* Refresh Button */}
         <button
-          onClick={fetchOrders}
+          onClick={() => fetchOrders(currentPage, 20, { orderOption: orderFilter })}
           className="px-3 py-1.5 md:px-4 md:py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200 text-gray-700 flex items-center gap-1.5 md:gap-2 shadow-sm text-xs"
         >
           <Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4" />
@@ -291,13 +287,13 @@ const OrderManager: React.FC = () => {
         </button>
       </div>
 
-      {filteredOrders.length === 0 ? (
+      {orders.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
           <p className="text-gray-500">No orders found</p>
         </div>
       ) : (
         <div className="space-y-3">
-           {filteredOrders.map((order) => (
+           {orders.map((order) => (
              <div
                key={order.id}
                className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 md:p-6 hover:shadow-md transition-shadow duration-200 relative"
@@ -404,6 +400,38 @@ const OrderManager: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {totalCount > 0 && Math.ceil(totalCount / 20) > 1 && (
+        <div className="flex items-center justify-between bg-white px-3 md:px-4 py-3 border border-gray-200 rounded-lg shadow-sm">
+          <div className="flex-1 flex items-center justify-between">
+            <div>
+              <p className="text-xs md:text-sm text-gray-700">
+                Showing <span className="font-medium">{(currentPage - 1) * 20 + 1}</span> to <span className="font-medium">{Math.min(currentPage * 20, totalCount)}</span> of{' '}
+                <span className="font-medium">{totalCount}</span> orders
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => fetchOrders(currentPage - 1, 20, { orderOption: orderFilter })}
+                  disabled={currentPage === 1 || loading}
+                  className={`relative inline-flex items-center px-2 md:px-3 py-1.5 md:py-2 rounded-l-md border border-gray-300 bg-white text-xs md:text-sm font-medium ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => fetchOrders(currentPage + 1, 20, { orderOption: orderFilter })}
+                  disabled={currentPage >= Math.ceil(totalCount / 20) || loading}
+                  className={`relative inline-flex items-center px-2 md:px-3 py-1.5 md:py-2 rounded-r-md border border-gray-300 bg-white text-xs md:text-sm font-medium ${currentPage >= Math.ceil(totalCount / 20) ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-50'}`}
+                >
+                  Next
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
 

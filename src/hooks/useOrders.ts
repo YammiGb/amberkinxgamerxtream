@@ -6,40 +6,47 @@ export const useOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentFilter, setCurrentFilter] = useState<string | null>(null);
 
-  // Fetch all orders (optimized - only fetch essential fields, limit to recent orders)
-  const fetchOrders = async (limit: number = 100, since?: string) => {
+  // Fetch all orders with pagination and filtering
+  const fetchOrders = async (page: number = 1, limit: number = 20, filterOptions?: { orderOption?: string }) => {
     try {
       setLoading(true);
-      let query = supabase
-        .from('orders')
-        .select('id, invoice_number, status, total_price, payment_method_id, created_at, updated_at, member_id, order_option, order_items, customer_info, receipt_url')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      // If since is provided, only fetch orders newer than that
-      if (since) {
-        query = query.gt('created_at', since);
+      setCurrentPage(page);
+      
+      let actualFilter = currentFilter;
+      if (filterOptions !== undefined) {
+        if (filterOptions.orderOption) {
+          actualFilter = filterOptions.orderOption;
+          setCurrentFilter(filterOptions.orderOption);
+        } else {
+          actualFilter = null;
+          setCurrentFilter(null);
+        }
       }
 
-      const { data, error: fetchError } = await query;
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+
+      let query = supabase
+        .from('orders')
+        .select('id, invoice_number, status, total_price, payment_method_id, created_at, updated_at, member_id, order_option, order_items, customer_info, receipt_url', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (actualFilter) {
+        query = query.eq('order_option', actualFilter);
+      }
+
+      const { data, count, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
 
-      if (since && data && data.length > 0) {
-        // Append new orders to the beginning, keep only the most recent 100
-        setOrders(prev => {
-          const combined = [...(data as Order[]), ...prev];
-          // Remove duplicates by id
-          const unique = combined.filter((order, index, self) => 
-            index === self.findIndex(o => o.id === order.id)
-          );
-          // Keep only the most recent 100
-          return unique.slice(0, limit);
-        });
-      } else {
-        // Initial fetch or full refresh
-        setOrders((data || []) as Order[]);
+      setOrders((data || []) as Order[]);
+      if (count !== null) {
+        setTotalCount(count);
       }
       setError(null);
     } catch (err) {
@@ -93,12 +100,12 @@ export const useOrders = () => {
       if (orders.length > 0 && data) {
         setOrders(prev => {
           const updated = [data as Order, ...prev];
-          // Keep only the most recent 100
-          return updated.slice(0, 100);
+          return updated.slice(0, 20); // enforce max 20 due to pagination logic
         });
+        setTotalCount(prev => prev + 1);
       } else if (orders.length === 0) {
         // If no orders loaded, fetch initial set
-        await fetchOrders(100);
+        await fetchOrders(1, 20);
       }
 
       return data;
@@ -138,9 +145,6 @@ export const useOrders = () => {
   useEffect(() => {
     if (orders.length === 0) return;
     
-    const mostRecentOrder = orders[0];
-    const mostRecentDate = mostRecentOrder?.created_at;
-    
     const channel = supabase
       .channel('orders-changes')
       .on(
@@ -154,15 +158,19 @@ export const useOrders = () => {
           if (payload.eventType === 'INSERT') {
             // Use the order data from the payload directly (optimized - no extra egress)
             const newOrder = payload.new as Order;
-            setOrders(prev => {
-              // Check if order already exists (avoid duplicates)
-              if (prev.some(order => order.id === newOrder.id)) {
-                return prev;
+            
+            // Only prepend if we're on page 1 and matches filter
+            if (currentPage === 1) {
+              const orderOption = newOrder.order_option || 'place_order';
+              if (!currentFilter || orderOption === currentFilter) {
+                setOrders(prev => {
+                  if (prev.some(order => order.id === newOrder.id)) return prev;
+                  const updated = [newOrder, ...prev];
+                  return updated.slice(0, 20);
+                });
+                setTotalCount(prev => prev + 1);
               }
-              // Add new order to the beginning, keep only the most recent 100
-              const updated = [newOrder, ...prev];
-              return updated.slice(0, 100);
-            });
+            }
           } else if (payload.eventType === 'UPDATE') {
             // Update the specific order in the list using payload data (optimized - no extra egress)
             const updatedOrder = payload.new as Order;
@@ -171,7 +179,14 @@ export const useOrders = () => {
             ));
           } else if (payload.eventType === 'DELETE') {
             // Remove deleted order from list
-            setOrders(prev => prev.filter(order => order.id !== payload.old.id));
+            setOrders(prev => {
+              const next = prev.filter(order => order.id !== payload.old.id);
+              if (next.length !== prev.length) {
+                // Approximate total count adjustment
+                setTotalCount(count => count > 0 ? count - 1 : 0);
+              }
+              return next;
+            });
           }
         }
       )
@@ -180,12 +195,15 @@ export const useOrders = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [orders.length, orders[0]?.created_at]);
+  }, [orders.length, currentPage, currentFilter]);
 
   return {
     orders,
     loading,
     error,
+    totalCount,
+    currentPage,
+    setCurrentPage,
     fetchOrders,
     fetchOrderById,
     createOrder,
