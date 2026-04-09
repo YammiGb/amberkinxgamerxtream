@@ -1746,7 +1746,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
               <p className="text-sm text-cafe-text">{paymentMethod.name} Selected</p>
             </div>
           )}
-          <div className="grid grid-cols-6 gap-1 md:gap-2 mb-6">
+          <div className="grid grid-cols-2 gap-2 mb-6">
             {paymentMethods
               .filter((method) => {
                 // Filter payment methods based on max_order_amount
@@ -1764,27 +1764,17 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, totalPrice, onBack, onNa
                 onClick={() => {
                   setPaymentMethod(method);
                 }}
-                className={`rounded-lg border-2 transition-all duration-200 flex flex-col overflow-hidden ${
+                className={`px-4 py-3 rounded-lg border-2 transition-all duration-200 flex items-center justify-between text-left ${
                   paymentMethod?.id === method.id
-                    ? 'border-transparent'
-                    : 'glass border-cafe-primary/30 hover:border-cafe-primary hover:glass-strong'
+                    ? 'border-transparent text-cafe-darkBg'
+                    : 'glass border-cafe-primary/30 hover:border-cafe-primary hover:glass-strong text-cafe-text'
                 }`}
                 style={paymentMethod?.id === method.id ? { backgroundColor: '#F5F0E6' } : {}}
               >
-                {/* Icon fills the card */}
-                <div className="relative w-full aspect-square flex-shrink-0 overflow-hidden bg-gradient-to-br from-cafe-darkCard to-cafe-darkBg rounded-lg">
-                  {method.icon_url ? (
-                    <img
-                      src={method.icon_url}
-                      alt={method.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-2xl md:text-4xl">💳</span>
-                    </div>
-                  )}
-                </div>
+                <span className="font-medium text-sm">{method.name}</span>
+                {paymentMethod?.id === method.id && (
+                  <Check className="h-5 w-5 opacity-80" />
+                )}
               </button>
             ))}
           </div>
